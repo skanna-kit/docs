@@ -1,0 +1,46 @@
+---
+title: "P3: Citation attribution"
+description: "The real moat. Can be built in parallel with Phase 2 since it touches different parts of the stack."
+icon: "square"
+---
+
+
+### Database
+
+- [ ] Add `ai_referrer text` and `landing_path text` columns to `bot_logs`.
+- [ ] Add `tracker_installed_at timestamptz` to `sites`.
+
+### Edge worker — tracker redesign
+
+- [ ] Refactor `tracker.template.js`:
+  - Detect AI referrers: `chatgpt.com`, `chat.openai.com`, `claude.ai`, `anthropic.com`, `perplexity.ai`, `gemini.google.com`, and more.
+  - On match: POST to `/v1/ingest/citation` with `{ siteId, referrer, path, visitId }`.
+  - First-party `visitId` cookie, 30-min TTL, for dedup.
+  - 2KB gzipped target. Verify with `gzip -c tracker.min.js | wc -c`.
+  - Silent failure mode — never throws on the customer's page.
+- [ ] `POST /v1/ingest/citation` — writes to `bot_logs` with `action='citation_click'` + parsed `ai_referrer` via `ctx.waitUntil`.
+- [ ] Dedup by `(siteId, visitId, path)` within 24h (check before write).
+
+### Brain
+
+- [ ] `POST /verify-tracker` — fetches customer site, checks for tracker script tag OR looks for any recent hit in `bot_logs`. Returns `{ verified, method, lastHitAt? }`.
+- [ ] `POST /citations/rollup` (cron-only, daily 03:00 UTC) — aggregates `bot_logs` citation clicks into `daily_bot_stats`.
+
+### App — Citations UI
+
+- [ ] `/site/[siteId]/citations` — citation attribution dashboard
+- [ ] Shows: citation count by provider, landing pages by AI visits, time-series chart
+- [ ] Empty state for "tracker not installed" per Copy Kit v2.0 Part 8
+- [ ] "Connect to tracked prompts" view — lists prompts with highest correlation to AI referrer traffic
+
+### Onboarding
+
+- [ ] Step 5 of signup ("Install the tracker") now includes the new tracker script tag
+- [ ] `Verify install` button hits `/verify-tracker`
+- [ ] Tracker-not-verified banner persists on dashboard until verified
+
+### Exit criteria for Phase 3
+
+A trial user installs the tracker in under 3 minutes. Within 24 hours of installation, if any real AI-referred visit hits their site, it appears in the Citations dashboard. The tracker is under 2KB gzipped and does not break customer sites.
+
+---

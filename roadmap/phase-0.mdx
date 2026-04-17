@@ -1,0 +1,41 @@
+---
+title: "P0: Foundation"
+description: "Configure Windsurf for your documentation workflow"
+icon: "square-check"
+---
+
+
+## Phase 0 — Kill what's broken (week 1)
+
+Before building anything new, clear credibility landmines from the v1 codebase. None of these take more than half a day each.
+
+### Marketing site
+
+- [ ] Delete `/features/broadcasting` page entirely. 301 to `/features/answer-monitor`.
+- [ ] Delete `/features/ai-shield` as a paid feature page. Repurpose URL as redirect to `/tools/ai-bot-audit`.
+- [ ] Remove any copy mentioning "4 frontier models notified" / "push to OpenAI" / "broadcast to AI providers" across the marketing site, blog posts, and any pre-existing email templates.
+- [ ] Audit every blog post for false specificity. Any stat of the form "according to our data, X happened" where we don't yet have X data → remove or rephrase as "industry research suggests."
+- [ ] Remove `/lib/tiers.ts` pricing tables that use old tier names. Replace with v4 locked prices: Starter $89, Growth $249, Scale $799.
+- [ ] Remove the `$49` price from `app/page.tsx` JSON-LD. Replace with `89`.
+- [ ] Homepage copy: keep v1 live for now (don't break SEO), but tag for full replacement in Phase 4.
+
+### App / dashboard
+
+- [ ] Hide the Broadcasting UI in existing site dashboards. Comment out the `PriorityBroadcast` component. Don't delete — internal use still valid.
+- [ ] Hide the AI Shield paid feature from the navigation and settings.
+- [ ] Confirm no marketing copy in the app dashboard mentions broadcasting or AI Shield as a customer feature.
+
+### Brain
+
+- [ ] Mark `/deploy` and `CloudflareDeployService` as deprecated in BRAIN_API.md. Code stays; route returns 410 Gone for new calls.
+- [ ] Mark customer-facing `/broadcast` as internal-only. The endpoint keeps working for readyforllm.com's own IndexNow pings.
+- [ ] **Finish Polar sandbox end-to-end signup test** (this is the only v1 task that blocks Phase 1).
+  - Incognito, throwaway email, `4242 4242 4242 4242`, `wrangler tail` open.
+  - Verify `/public/preflight` → `/public/estimate-size` → `/sites/create-from-onboarding` → `/checkout/create` all return 200.
+  - Complete sandbox checkout, verify webhook arrives, verify Supabase row flipped to `is_active=true`.
+  - Verify post-checkout redirect lands on `/site/[siteId]?welcome=true`.
+  - If anything breaks: fix before Phase 1.
+
+### Exit criteria for Phase 0
+
+Signup end-to-end works in sandbox. All customer-facing Broadcasting/AI Shield UI is gone. Pricing on the marketing site matches v4 ($89/$249/$799).

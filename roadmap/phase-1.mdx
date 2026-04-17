@@ -1,0 +1,64 @@
+---
+title: "P1: Credit System"
+description: "This is the biggest phase. Every v2 feature depends on credits existing. Build this right, everything else gets easier."
+icon: "square"
+---
+
+### Database migrations
+
+- [ ] Create `credit_transactions` table (migration `20260501000000_phase1_credit_transactions.sql`):
+  - Columns per Architecture v2.1 section 3
+  - Indexes: `(site_id, created_at DESC)`, `(type)`, `(expires_at) WHERE expires_at IS NOT NULL`
+  - RLS SELECT policy matching existing `credit_transactions_select_own` pattern
+- [ ] Add columns to `sites` (`20260502000000_phase1_sites_credits.sql`):
+  - `credits_remaining INT NOT NULL DEFAULT 0`
+  - `credits_allocation_monthly INT NOT NULL DEFAULT 0`
+  - `credits_reset_at TIMESTAMPTZ`
+  - `trial_credits_granted BOOLEAN NOT NULL DEFAULT false`
+- [ ] Add columns to `tracked_prompts` (`20260503000000_phase1_tracked_prompts_credits.sql`):
+  - `credits_per_run INT NOT NULL`
+  - `models_set JSONB NOT NULL`
+  - `paused_reason TEXT NULL`
+  - `paused_at TIMESTAMPTZ NULL`
+- [ ] Create `consume_credits()` Postgres RPC (`20260504000000_phase1_consume_credits_rpc.sql`). Atomic single-transaction function per Architecture v2.1 section 4.
+
+### Brain — CreditService
+
+- [ ] Create `src/services/CreditService.ts` with all 7 methods from Architecture v2.1 section 4 (`consume`, `grantSubscription`, `grantTopup`, `grantTrial`, `balance`, `canAfford`, `reconcile`).
+- [ ] Create `src/lib/models.ts` — defines the credit multiplier for each model ID. Export `getCreditCost(modelId: string): 1 | 3 | 4`.
+- [ ] Create `src/lib/topups.ts` — maps Polar product IDs → credit amount for the 5 top-up packs.
+- [ ] Unit tests for `consume_credits` RPC: atomic decrement, insufficient-credits returns NULL, concurrent calls don't double-spend.
+
+### Brain — new endpoints
+
+- [ ] `GET /credits/balance` — returns balance + last 20 transactions for a site
+- [ ] `POST /credits/topup-checkout` — creates Polar checkout URL for a top-up pack
+- [ ] `POST /credits/grant-monthly` (cron-only) — iterates active subscriptions, grants
+- [ ] `POST /credits/expire-topups` (cron-only, nightly) — expires 90-day-old top-ups
+- [ ] `POST /credits/reconcile` (cron-only, nightly) — drift detection
+
+### Brain — Polar webhook updates
+
+- [ ] Expand `/webhooks/polar` to handle `order.paid` with top-up product IDs → grant credits via `CreditService.grantTopup()`.
+- [ ] Handle `order.paid` for Prompt Studio → fires Prompt Studio job (Phase 2) — for now, stub.
+- [ ] Handle monthly billing cycle completion → trigger `CreditService.grantSubscription()`.
+
+### Polar configuration
+
+- [ ] Create 5 top-up products: 1,000 / 3,000 / 10,000 / 30,000 / 100,000 credits at $19 / $49 / $139 / $349 / $999.
+- [ ] Create Prompt Studio one-time product at $29.
+- [ ] Update existing subscription products: Starter $89, Growth $249, Scale $799 (monthly + annual variants).
+- [ ] Update all POLAR_PRODUCT_* env vars on brain.
+- [ ] Create Webhook + API product at $79/mo.
+- [ ] Create Team seat product at $19/mo.
+
+### Dashboard — credit meter
+
+- [ ] Build persistent header credit meter component (`components/credit-meter.tsx`). Reads `sites.credits_remaining` + `credits_allocation_monthly` via RLS.
+- [ ] Three visual states: Healthy / Low / Exhausted per Copy Kit v2.1 section 4.
+- [ ] Side panel on click: current balance, projected exhaustion, top 5 consumption prompts, recent transactions, CTAs.
+- [ ] Copy exactly as specified in Copy Kit v2.1 section 4.
+
+### Exit criteria for Phase 1
+
+- Credit ledger is live. A site can be granted credits. A prompt run consumes credits atomically. Balance shown in dashboard header. Top-up checkout flow works end-to-end in Polar sandbox.

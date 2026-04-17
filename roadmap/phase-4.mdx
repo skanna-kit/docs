@@ -1,0 +1,53 @@
+---
+title: "P4: Audit URL + free tool flywheel"
+description: "The outbound weapon and lead-gen layer."
+icon: "square"
+---
+
+### Marketing — the audit URL
+
+- [ ] Build `/audit/[domain]` dynamic page per Copy Kit v2.0 Part 6:
+  - Accepts any domain
+  - Calls brain `/public/visibility-audit` + `/public/preflight` + `/public/audit-robots`
+  - Renders one-page report with score, model breakdown, competitor gap, fix list
+  - Dynamic OG image per domain
+  - Shareable URL pattern: `readyforllm.com/audit/{domain}`
+- [ ] Brain `/public/visibility-audit` endpoint — runs 10 category prompts across 4 models, returns score + per-model breakdown. Rate-limited 3/min per IP, 10/hour per IP.
+- [ ] Brain `/public/competitor-gap` endpoint — same rate limits.
+
+### Free tools
+
+- [ ] `/tools/prompt-studio-preview` — 10 free prompts generated from a domain (no login)
+- [ ] `/tools/ai-visibility-audit` — interactive version of `/audit/[domain]`
+- [ ] `/tools/competitor-ai-gap` — paste two domains, show who AI picks
+- [ ] `/tools/parasite-blocklist` — downloadable live feed (CSV/JSON/XML)
+- [ ] `/tools/prompt-library-browser` — browse the 500 curated prompts (reads from new `prompt_library` endpoint)
+- [ ] Keep existing: citation checker, llms.txt checker, manifest generator, AI bot audit, bandwidth calc
+
+### Prompt Studio (the $29 add-on)
+
+- [ ] Brain `/prompt-studio/generate` endpoint:
+  - Firecrawl-map site, scrape top 20 pages
+  - Gemini 2.5 Pro call with prompt-generation system prompt
+  - Returns 50 categorized prompts
+- [ ] App UI: `/site/[siteId]/studio` — run Prompt Studio, review results, bulk-add to tracked prompts
+- [ ] Free on Growth+ trials (brain checks tier + trial flag before consuming)
+- [ ] $29 one-time purchase for Starter or standalone buyers (Polar one-time product)
+
+### Marketing — homepage + feature page replacement
+
+- [ ] Replace `HOMEPAGE` constant in `app/page.tsx` with v2.1 copy kit version (section 2 of v2.0 copy).
+- [ ] Update `lib/features-content.ts`:
+  - Rename `sentinel` → `answer-monitor`
+  - Rename `competitor-shadow` → `competitive-share`
+  - Add new entry `citation-attribution`
+  - Add new entry `prompt-library`
+  - Remove `broadcasting`, `ai-shield`, `auto-manifest` from `FEATURE_SLUGS`
+- [ ] Replace `lib/tools-content.ts` `TOOLS` array per Copy Kit v2.0 Part 5 + v2.1 delta section 2.
+- [ ] Replace pricing page (`app/pricing/page.tsx`) with Copy Kit v2.1 section 1.
+- [ ] Regenerate OG images for all feature pages.
+
+### Exit criteria for Phase 4
+
+`/audit/[domain]` takes any domain and produces a shareable one-pager. 10 free tools live. Prompt Studio works end-to-end (signup → scan → 50 prompts → bulk-add). Homepage and pricing reflect v2.1 copy.
+

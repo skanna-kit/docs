@@ -1,0 +1,67 @@
+---
+title: "P2: Sentinel + Competitive Share"
+description: "The core product. Without this, the pivot doesn't have a product."
+icon: "square"
+---
+
+## Phase 2 — Sentinel + Competitive Share (weeks 4–8)
+
+The core product. Without this, the pivot doesn't have a product.
+
+### Database
+
+- [ ] Create `tracked_prompts`, `prompt_runs`, `prompt_run_answers`, `prompt_drift_events`, `competitive_shares` tables per Architecture v2.0 section 5. (Note: `tracked_prompts.credits_per_run` already added in Phase 1.)
+- [ ] RLS policies on all five new tables following existing patterns.
+
+### Brain — PromptRunService
+
+- [ ] New service `src/services/PromptRunService.ts`:
+  - `runPrompt(siteId, promptId)` — credit pre-flight check → fire parallel LLM calls to all models in `models_set` → store `prompt_run_answers` → diff against previous run → write `prompt_drift_events` if material change → generate Sonnet drift summary for changed answers (additional 1 credit each) → return `runId`.
+  - Uses model adapters (one file per provider): `src/services/llms/openai.ts`, `anthropic.ts`, `gemini.ts`, `perplexity.ts`, `xai.ts`, `mistral.ts`. Each exports `query(prompt: string, modelId: string, opts): Promise<Answer>`.
+- [ ] New service `src/services/CompetitiveShareService.ts`:
+  - Runs weekly: for every (site × tracked_prompt × model × week) tuple, compute share score from prompt_run_answers, write row in `competitive_shares`.
+  - Triggered by cron `0 4 * * MON`.
+- [ ] New endpoints:
+  - `POST /prompts/add` — credit pre-flight, create prompt, fire first run (additional credits)
+  - `POST /prompts/remove` — soft delete
+  - `POST /prompts/run` — manual re-run (credit pre-flight)
+  - `POST /prompts/run-due` (cron-only) — every 10 min picks up due prompts
+  - `GET /prompts/library` — returns curated prompt library by vertical
+  - `POST /competitors/add` — add competitor
+  - `POST /competitors/check-due` (cron-only, hourly)
+  - `POST /shares/rollup` (cron-only, weekly)
+
+### Brain — cron wiring
+
+- [ ] Add to `wrangler.jsonc`:
+  - `*/10 * * * *` → `/prompts/run-due`
+  - `0 * * * *` → `/competitors/check-due`
+  - `0 4 * * MON` → `/shares/rollup`
+  - `0 3 * * *` → `/credits/expire-topups`, `/credits/reconcile`
+  - `0 0 * * *` → `/credits/grant-monthly` (check every day; grants fire on billing date per site)
+
+### App — Prompts UI
+
+- [ ] `/site/[siteId]/prompts` — list page, shows all tracked prompts with per-prompt credit cost
+- [ ] `/site/[siteId]/prompts/[promptId]` — detail with tabs: Latest answers · History · Drift events · Settings
+- [ ] `/site/[siteId]/prompts/library` — browse the 500 curated prompts
+- [ ] Add prompt modal with live credit cost preview
+- [ ] 500-char prompt length hard cap in the UI + API validator
+- [ ] Out-of-credits modal per Copy Kit v2.1 section 4
+
+### App — Competitors UI
+
+- [ ] `/site/[siteId]/competitors` — competitive share leaderboards
+- [ ] Add/remove competitor modal
+- [ ] Gap report widget (shows "prompts your competitors won this week")
+
+### Prompt Library — curated content
+
+- [ ] Write 500 prompts across 20 B2B SaaS verticals (dev tools, data, marketing, security, fintech, HR tech, analytics, CRM, etc.)
+- [ ] Tag each prompt with vertical + buyer stage (awareness/consideration/decision) + persona (IC/manager/exec)
+- [ ] Store in `prompt_library` table (new) + seed migration
+- [ ] Public endpoint `GET /public/prompt-library?vertical=X` — no auth, drives `/tools/prompt-library-browser` free tool
+
+### Exit criteria for Phase 2
+
+A trial user can add 10 prompts from the library, see them run daily, see multi-model answers side by side, get drift alerts, add 3 competitors, see competitive share scores. Credits tick down as prompts run.

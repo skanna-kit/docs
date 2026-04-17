@@ -1,18 +1,113 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Elvar's Docs",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
     "dark": "#15803D"
   },
+  "icons": {
+  "library": "lucide"
+},
   "favicon": "/favicon.svg",
   "navigation": {
+     "products": [
+      {
+        "product": "Core API",
+        "description": "Core API description",    
+        "icon": "api",
+        "groups": [
+          {
+            "group": "Getting started",
+            "pages": [
+              "core-api/quickstart",
+              "core-api/authentication"
+            ]
+          },
+          {
+            "group": "Endpoints",
+            "pages": [
+              "core-api/users",
+              "core-api/orders"
+            ]
+          }
+        ]
+      },
+      {
+        "product": "Analytics Platform",
+        "description": "Analytics Platform description",
+        "icon": "chart-bar",
+        "pages": [
+          "analytics/overview",
+          "analytics/dashboard",
+          "analytics/reports"
+        ]
+      },
+      {
+        "product": "Mobile SDK",
+        "description": "Mobile SDK description",
+        "icon": "smartphone",
+        "href": "https://mobile-sdk-docs.example.com"
+      }
+    ],
     "tabs": [
+      {
+        "tab": "ReadyForLLM",
+        "groups": [
+          {
+            "group": "Documents",
+            "pages": [
+              "artifacts/pricing"
+            ]
+          },
+
+          {
+            "group": "Roadmap",
+            "root": "roadmap/overview",
+            "directory": "accordion",
+            "badge": "v2",
+            "pages": [
+              "roadmap/phase-0",
+              "roadmap/phase-1",
+              "roadmap/phase-2",
+              "roadmap/phase-3",
+              "roadmap/phase-4",
+              "roadmap/phase-5",
+              "roadmap/phase-6"
+            ]
+          },
+          {
+            "group": "Documents",
+            "pages": [
+              "artifacts/pricing"
+            ]
+          },
+
+          
+          {
+            "group": "Endpoint examples",
+            "pages": [
+              "api-reference/endpoint/get",
+              "api-reference/endpoint/create",
+              "api-reference/endpoint/delete",
+              "api-reference/endpoint/webhook"
+            ]
+          }
+        ]
+      },
       {
         "tab": "Guides",
         "groups": [
+          {
+            "group": "Roadmap",
+            "pages": [
+              "essentials/markdown",
+              "essentials/code",
+              "essentials/images",
+              "essentials/reusable-snippets"
+            ]
+          },
           {
             "group": "Getting started",
             "pages": [
@@ -67,21 +162,7 @@
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
+    ]
   },
   "logo": {
     "light": "/logo/light.svg",

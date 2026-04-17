@@ -1,0 +1,72 @@
+---
+title: "P6: Iterate"
+description: "Based on real usage data, not hypothesis. Triggers from the kill-signal dashboard (Pricing v4 section 8)."
+icon: "square"
+---
+
+### Monthly review cadence
+
+Every first of the month, pull these numbers:
+
+| Metric | Source | Target | Kill signal |
+|---|---|---|---|
+| New trials started | PostHog | 30+/mo | 10 for 2mo = outbound not working |
+| Trial-to-paid rate | Supabase | 25%+ | 15% for 3mo = trial too short or product too thin |
+| Avg Starter credit utilization | SQL | 50-80% | >95% = tier too small; 40% = too big |
+| Starter → Growth upgrade rate | Supabase | 15%/qtr | 5% = upgrade nudge broken |
+| Month 4+ monthly churn | Supabase | 5% | >8% = product retention problem |
+| Top-up attach rate | Polar | 10-20% | 5% = credit system underused; >30% = tiers sized wrong |
+| Prompt Studio attach on trials | PostHog | 70%+ | 40% = onboarding flow not surfacing it |
+| Frontier model usage (Growth+) | SQL | 15%+ of credits | 5% = frontier tier irrelevant |
+| NPS (quarterly survey) | Typeform | 30+ | 20 = retention issue brewing |
+
+### Backlog (prioritized by impact)
+
+**Month 5 priorities:**
+- Data warehouse sync (Fivetran-compat CSV export) — Scale tier feature
+- Webhook+API add-on ($79/mo) with full documentation
+- Self-serve API key management in settings
+- More integrations: HubSpot, Salesforce, Segment (starts as webhook, eventually native)
+
+**Month 6–7 priorities:**
+- Agency tier launch (only if ≥30 paying customers)
+- White-label dashboard + custom subdomain
+- Multi-brand workspaces (Scale tier)
+- Monthly "State of AI Citations in B2B SaaS" report generator (turns into marketing)
+
+**Month 8–12 priorities:**
+- Next.js / Vercel official integration package
+- WordPress plugin
+- Enterprise tier (only if inbound Enterprise inquiries happen)
+- Notion / Linear plugin for drift alerts
+- Prompt Studio v2 — re-scan on schedule, diff prompts over time
+
+### Things to consciously NOT build
+
+- Multi-tenant tracker script with customer config — keep dead simple
+- BYOK (self-serve) — Enterprise only
+- On-prem / self-hosted
+- Gamified "share of voice" dashboards
+- AI-generated "recommendations" for what content to write — too far into the GEO optimization bucket, not our product
+
+---
+
+## Weekly cadence (once Phase 5 is live)
+
+Reserve specific blocks every week. Solo founder discipline matters here.
+
+| Day | Block | Activity |
+|---|---|---|
+| Mon | AM | Review prior week metrics. Pick focus for the week. |
+| Mon | PM | Respond to every cold-email reply. Book calls. |
+| Tue | AM | Engineering (deep work). |
+| Tue | PM | Customer calls (if any). |
+| Wed | AM | Content (blog, X thread, LinkedIn). |
+| Wed | PM | Free tool work (new one per week). |
+| Thu | AM | Engineering (deep work). |
+| Thu | PM | Outbound (20 cold emails). |
+| Fri | AM | Customer support queue. |
+| Fri | PM | Build-in-public weekly recap post (every Friday, no skip). |
+| Sun | Morning | Personal review: what moved the needle, what didn't. |
+
+---

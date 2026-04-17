@@ -1,0 +1,440 @@
+---
+title: "Roadmap"
+description: "Configure Windsurf for your documentation workflow"
+icon: "water"
+---
+
+**Last updated:** April 16, 2026
+
+**Current state:** v1 codebase built (70% reusable). Pivot to AI Visibility Analytics locked. Pricing model locked on credit system. Polar sandbox signup not yet verified end-to-end.
+**The north star:** Ship the new positioning with a credit-based billing spine, 14-day Starter trial, and the audit URL as the outbound wedge. Get to 10 paying customers before month 4 ends.
+
+---
+
+## 0. Order of operations — the dependency chain
+
+You can't ship in parallel because each phase's output gates the next:
+
+<Steps>
+  <Step title="W1: Kill what's broken" icon="Check"/>
+  <Step title="W2: Credit system foundation"/>
+  <Step title="W3: Credit system foundation"/>
+  <Step title="W4: Credit system foundation"/>
+  <Step title="W5: Sentinel + Competitive Share"/>
+  <Step title="W6: Sentinel + Competitive Share"/>
+  <Step title="W7: Sentinel + Competitive Share + Citation attribution"/>
+  <Step title="W8: Sentinel + Competitive Share + Citation attribution"/>
+  <Step title="W9: Citation attribution + Audit URL + free tool flywheel"/>
+  <Step title="W10: Citation attribution + Audit URL + free tool flywheel"/>
+  <Step title="W11: Audit URL + free tool flywheel"/>
+  <Step title="W12: Citation attribution + Audit URL + free tool flywheel + Launch + outbound"/>
+  <Step title="W13: Launch + outbound"/>
+  <Step title="W14: Launch + outbound"/>
+  <Step title="W15: Launch + outbound"/>
+  <Step title="W16: Launch + outbound"/>
+  <Step title="W17+: Iterate based on real usage"/>
+</Steps>
+
+**Total to launch: 12 weeks from today if solo and full-time.** Add 4 weeks of buffer if you're part-time or fighting other fires.
+
+---
+
+## Phase 0 — Kill what's broken (week 1)
+
+Before building anything new, clear credibility landmines from the v1 codebase. None of these take more than half a day each.
+
+### Marketing site
+
+- [ ] Delete `/features/broadcasting` page entirely. 301 to `/features/answer-monitor`.
+- [ ] Delete `/features/ai-shield` as a paid feature page. Repurpose URL as redirect to `/tools/ai-bot-audit`.
+- [ ] Remove any copy mentioning "4 frontier models notified" / "push to OpenAI" / "broadcast to AI providers" across the marketing site, blog posts, and any pre-existing email templates.
+- [ ] Audit every blog post for false specificity. Any stat of the form "according to our data, X happened" where we don't yet have X data → remove or rephrase as "industry research suggests."
+- [ ] Remove `/lib/tiers.ts` pricing tables that use old tier names. Replace with v4 locked prices: Starter $89, Growth $249, Scale $799.
+- [ ] Remove the `$49` price from `app/page.tsx` JSON-LD. Replace with `89`.
+- [ ] Homepage copy: keep v1 live for now (don't break SEO), but tag for full replacement in Phase 4.
+
+### App / dashboard
+
+- [ ] Hide the Broadcasting UI in existing site dashboards. Comment out the `PriorityBroadcast` component. Don't delete — internal use still valid.
+- [ ] Hide the AI Shield paid feature from the navigation and settings.
+- [ ] Confirm no marketing copy in the app dashboard mentions broadcasting or AI Shield as a customer feature.
+
+### Brain
+
+- [ ] Mark `/deploy` and `CloudflareDeployService` as deprecated in BRAIN_API.md. Code stays; route returns 410 Gone for new calls.
+- [ ] Mark customer-facing `/broadcast` as internal-only. The endpoint keeps working for readyforllm.com's own IndexNow pings.
+- [ ] **Finish Polar sandbox end-to-end signup test** (this is the only v1 task that blocks Phase 1).
+  - Incognito, throwaway email, `4242 4242 4242 4242`, `wrangler tail` open.
+  - Verify `/public/preflight` → `/public/estimate-size` → `/sites/create-from-onboarding` → `/checkout/create` all return 200.
+  - Complete sandbox checkout, verify webhook arrives, verify Supabase row flipped to `is_active=true`.
+  - Verify post-checkout redirect lands on `/site/[siteId]?welcome=true`.
+  - If anything breaks: fix before Phase 1.
+
+### Exit criteria for Phase 0
+
+Signup end-to-end works in sandbox. All customer-facing Broadcasting/AI Shield UI is gone. Pricing on the marketing site matches v4 ($89/$249/$799).
+
+---
+
+## Phase 1 — Credit system foundation (weeks 2–4)
+
+This is the biggest phase. Every v2 feature depends on credits existing. Build this right, everything else gets easier.
+
+### Database migrations
+
+- [ ] Create `credit_transactions` table (migration `20260501000000_phase1_credit_transactions.sql`):
+  - Columns per Architecture v2.1 section 3
+  - Indexes: `(site_id, created_at DESC)`, `(type)`, `(expires_at) WHERE expires_at IS NOT NULL`
+  - RLS SELECT policy matching existing `credit_transactions_select_own` pattern
+- [ ] Add columns to `sites` (`20260502000000_phase1_sites_credits.sql`):
+  - `credits_remaining INT NOT NULL DEFAULT 0`
+  - `credits_allocation_monthly INT NOT NULL DEFAULT 0`
+  - `credits_reset_at TIMESTAMPTZ`
+  - `trial_credits_granted BOOLEAN NOT NULL DEFAULT false`
+- [ ] Add columns to `tracked_prompts` (`20260503000000_phase1_tracked_prompts_credits.sql`):
+  - `credits_per_run INT NOT NULL`
+  - `models_set JSONB NOT NULL`
+  - `paused_reason TEXT NULL`
+  - `paused_at TIMESTAMPTZ NULL`
+- [ ] Create `consume_credits()` Postgres RPC (`20260504000000_phase1_consume_credits_rpc.sql`). Atomic single-transaction function per Architecture v2.1 section 4.
+
+### Brain — CreditService
+
+- [ ] Create `src/services/CreditService.ts` with all 7 methods from Architecture v2.1 section 4 (`consume`, `grantSubscription`, `grantTopup`, `grantTrial`, `balance`, `canAfford`, `reconcile`).
+- [ ] Create `src/lib/models.ts` — defines the credit multiplier for each model ID. Export `getCreditCost(modelId: string): 1 | 3 | 4`.
+- [ ] Create `src/lib/topups.ts` — maps Polar product IDs → credit amount for the 5 top-up packs.
+- [ ] Unit tests for `consume_credits` RPC: atomic decrement, insufficient-credits returns NULL, concurrent calls don't double-spend.
+
+### Brain — new endpoints
+
+- [ ] `GET /credits/balance` — returns balance + last 20 transactions for a site
+- [ ] `POST /credits/topup-checkout` — creates Polar checkout URL for a top-up pack
+- [ ] `POST /credits/grant-monthly` (cron-only) — iterates active subscriptions, grants
+- [ ] `POST /credits/expire-topups` (cron-only, nightly) — expires 90-day-old top-ups
+- [ ] `POST /credits/reconcile` (cron-only, nightly) — drift detection
+
+### Brain — Polar webhook updates
+
+- [ ] Expand `/webhooks/polar` to handle `order.paid` with top-up product IDs → grant credits via `CreditService.grantTopup()`.
+- [ ] Handle `order.paid` for Prompt Studio → fires Prompt Studio job (Phase 2) — for now, stub.
+- [ ] Handle monthly billing cycle completion → trigger `CreditService.grantSubscription()`.
+
+### Polar configuration
+
+- [ ] Create 5 top-up products: 1,000 / 3,000 / 10,000 / 30,000 / 100,000 credits at $19 / $49 / $139 / $349 / $999.
+- [ ] Create Prompt Studio one-time product at $29.
+- [ ] Update existing subscription products: Starter $89, Growth $249, Scale $799 (monthly + annual variants).
+- [ ] Update all POLAR_PRODUCT_* env vars on brain.
+- [ ] Create Webhook + API product at $79/mo.
+- [ ] Create Team seat product at $19/mo.
+
+### Dashboard — credit meter
+
+- [ ] Build persistent header credit meter component (`components/credit-meter.tsx`). Reads `sites.credits_remaining` + `credits_allocation_monthly` via RLS.
+- [ ] Three visual states: Healthy / Low / Exhausted per Copy Kit v2.1 section 4.
+- [ ] Side panel on click: current balance, projected exhaustion, top 5 consumption prompts, recent transactions, CTAs.
+- [ ] Copy exactly as specified in Copy Kit v2.1 section 4.
+
+### Exit criteria for Phase 1
+
+- Credit ledger is live. A site can be granted credits. A prompt run consumes credits atomically. Balance shown in dashboard header. Top-up checkout flow works end-to-end in Polar sandbox.
+
+---
+
+## Phase 2 — Sentinel + Competitive Share (weeks 4–8)
+
+The core product. Without this, the pivot doesn't have a product.
+
+### Database
+
+- [ ] Create `tracked_prompts`, `prompt_runs`, `prompt_run_answers`, `prompt_drift_events`, `competitive_shares` tables per Architecture v2.0 section 5. (Note: `tracked_prompts.credits_per_run` already added in Phase 1.)
+- [ ] RLS policies on all five new tables following existing patterns.
+
+### Brain — PromptRunService
+
+- [ ] New service `src/services/PromptRunService.ts`:
+  - `runPrompt(siteId, promptId)` — credit pre-flight check → fire parallel LLM calls to all models in `models_set` → store `prompt_run_answers` → diff against previous run → write `prompt_drift_events` if material change → generate Sonnet drift summary for changed answers (additional 1 credit each) → return `runId`.
+  - Uses model adapters (one file per provider): `src/services/llms/openai.ts`, `anthropic.ts`, `gemini.ts`, `perplexity.ts`, `xai.ts`, `mistral.ts`. Each exports `query(prompt: string, modelId: string, opts): Promise<Answer>`.
+- [ ] New service `src/services/CompetitiveShareService.ts`:
+  - Runs weekly: for every (site × tracked_prompt × model × week) tuple, compute share score from prompt_run_answers, write row in `competitive_shares`.
+  - Triggered by cron `0 4 * * MON`.
+- [ ] New endpoints:
+  - `POST /prompts/add` — credit pre-flight, create prompt, fire first run (additional credits)
+  - `POST /prompts/remove` — soft delete
+  - `POST /prompts/run` — manual re-run (credit pre-flight)
+  - `POST /prompts/run-due` (cron-only) — every 10 min picks up due prompts
+  - `GET /prompts/library` — returns curated prompt library by vertical
+  - `POST /competitors/add` — add competitor
+  - `POST /competitors/check-due` (cron-only, hourly)
+  - `POST /shares/rollup` (cron-only, weekly)
+
+### Brain — cron wiring
+
+- [ ] Add to `wrangler.jsonc`:
+  - `*/10 * * * *` → `/prompts/run-due`
+  - `0 * * * *` → `/competitors/check-due`
+  - `0 4 * * MON` → `/shares/rollup`
+  - `0 3 * * *` → `/credits/expire-topups`, `/credits/reconcile`
+  - `0 0 * * *` → `/credits/grant-monthly` (check every day; grants fire on billing date per site)
+
+### App — Prompts UI
+
+- [ ] `/site/[siteId]/prompts` — list page, shows all tracked prompts with per-prompt credit cost
+- [ ] `/site/[siteId]/prompts/[promptId]` — detail with tabs: Latest answers · History · Drift events · Settings
+- [ ] `/site/[siteId]/prompts/library` — browse the 500 curated prompts
+- [ ] Add prompt modal with live credit cost preview
+- [ ] 500-char prompt length hard cap in the UI + API validator
+- [ ] Out-of-credits modal per Copy Kit v2.1 section 4
+
+### App — Competitors UI
+
+- [ ] `/site/[siteId]/competitors` — competitive share leaderboards
+- [ ] Add/remove competitor modal
+- [ ] Gap report widget (shows "prompts your competitors won this week")
+
+### Prompt Library — curated content
+
+- [ ] Write 500 prompts across 20 B2B SaaS verticals (dev tools, data, marketing, security, fintech, HR tech, analytics, CRM, etc.)
+- [ ] Tag each prompt with vertical + buyer stage (awareness/consideration/decision) + persona (IC/manager/exec)
+- [ ] Store in `prompt_library` table (new) + seed migration
+- [ ] Public endpoint `GET /public/prompt-library?vertical=X` — no auth, drives `/tools/prompt-library-browser` free tool
+
+### Exit criteria for Phase 2
+
+A trial user can add 10 prompts from the library, see them run daily, see multi-model answers side by side, get drift alerts, add 3 competitors, see competitive share scores. Credits tick down as prompts run.
+
+---
+
+## Phase 3 — Citation attribution (weeks 7–10, overlap Phase 2)
+
+The real moat. Can be built in parallel with Phase 2 since it touches different parts of the stack.
+
+### Database
+
+- [ ] Add `ai_referrer text` and `landing_path text` columns to `bot_logs`.
+- [ ] Add `tracker_installed_at timestamptz` to `sites`.
+
+### Edge worker — tracker redesign
+
+- [ ] Refactor `tracker.template.js`:
+  - Detect AI referrers: `chatgpt.com`, `chat.openai.com`, `claude.ai`, `anthropic.com`, `perplexity.ai`, `gemini.google.com`, and more.
+  - On match: POST to `/v1/ingest/citation` with `{ siteId, referrer, path, visitId }`.
+  - First-party `visitId` cookie, 30-min TTL, for dedup.
+  - 2KB gzipped target. Verify with `gzip -c tracker.min.js | wc -c`.
+  - Silent failure mode — never throws on the customer's page.
+- [ ] `POST /v1/ingest/citation` — writes to `bot_logs` with `action='citation_click'` + parsed `ai_referrer` via `ctx.waitUntil`.
+- [ ] Dedup by `(siteId, visitId, path)` within 24h (check before write).
+
+### Brain
+
+- [ ] `POST /verify-tracker` — fetches customer site, checks for tracker script tag OR looks for any recent hit in `bot_logs`. Returns `{ verified, method, lastHitAt? }`.
+- [ ] `POST /citations/rollup` (cron-only, daily 03:00 UTC) — aggregates `bot_logs` citation clicks into `daily_bot_stats`.
+
+### App — Citations UI
+
+- [ ] `/site/[siteId]/citations` — citation attribution dashboard
+- [ ] Shows: citation count by provider, landing pages by AI visits, time-series chart
+- [ ] Empty state for "tracker not installed" per Copy Kit v2.0 Part 8
+- [ ] "Connect to tracked prompts" view — lists prompts with highest correlation to AI referrer traffic
+
+### Onboarding
+
+- [ ] Step 5 of signup ("Install the tracker") now includes the new tracker script tag
+- [ ] `Verify install` button hits `/verify-tracker`
+- [ ] Tracker-not-verified banner persists on dashboard until verified
+
+### Exit criteria for Phase 3
+
+A trial user installs the tracker in under 3 minutes. Within 24 hours of installation, if any real AI-referred visit hits their site, it appears in the Citations dashboard. The tracker is under 2KB gzipped and does not break customer sites.
+
+---
+
+## Phase 4 — Audit URL + free tool flywheel (weeks 9–12)
+
+The outbound weapon and lead-gen layer.
+
+### Marketing — the audit URL
+
+- [ ] Build `/audit/[domain]` dynamic page per Copy Kit v2.0 Part 6:
+  - Accepts any domain
+  - Calls brain `/public/visibility-audit` + `/public/preflight` + `/public/audit-robots`
+  - Renders one-page report with score, model breakdown, competitor gap, fix list
+  - Dynamic OG image per domain
+  - Shareable URL pattern: `readyforllm.com/audit/{domain}`
+- [ ] Brain `/public/visibility-audit` endpoint — runs 10 category prompts across 4 models, returns score + per-model breakdown. Rate-limited 3/min per IP, 10/hour per IP.
+- [ ] Brain `/public/competitor-gap` endpoint — same rate limits.
+
+### Free tools
+
+- [ ] `/tools/prompt-studio-preview` — 10 free prompts generated from a domain (no login)
+- [ ] `/tools/ai-visibility-audit` — interactive version of `/audit/[domain]`
+- [ ] `/tools/competitor-ai-gap` — paste two domains, show who AI picks
+- [ ] `/tools/parasite-blocklist` — downloadable live feed (CSV/JSON/XML)
+- [ ] `/tools/prompt-library-browser` — browse the 500 curated prompts (reads from new `prompt_library` endpoint)
+- [ ] Keep existing: citation checker, llms.txt checker, manifest generator, AI bot audit, bandwidth calc
+
+### Prompt Studio (the $29 add-on)
+
+- [ ] Brain `/prompt-studio/generate` endpoint:
+  - Firecrawl-map site, scrape top 20 pages
+  - Gemini 2.5 Pro call with prompt-generation system prompt
+  - Returns 50 categorized prompts
+- [ ] App UI: `/site/[siteId]/studio` — run Prompt Studio, review results, bulk-add to tracked prompts
+- [ ] Free on Growth+ trials (brain checks tier + trial flag before consuming)
+- [ ] $29 one-time purchase for Starter or standalone buyers (Polar one-time product)
+
+### Marketing — homepage + feature page replacement
+
+- [ ] Replace `HOMEPAGE` constant in `app/page.tsx` with v2.1 copy kit version (section 2 of v2.0 copy).
+- [ ] Update `lib/features-content.ts`:
+  - Rename `sentinel` → `answer-monitor`
+  - Rename `competitor-shadow` → `competitive-share`
+  - Add new entry `citation-attribution`
+  - Add new entry `prompt-library`
+  - Remove `broadcasting`, `ai-shield`, `auto-manifest` from `FEATURE_SLUGS`
+- [ ] Replace `lib/tools-content.ts` `TOOLS` array per Copy Kit v2.0 Part 5 + v2.1 delta section 2.
+- [ ] Replace pricing page (`app/pricing/page.tsx`) with Copy Kit v2.1 section 1.
+- [ ] Regenerate OG images for all feature pages.
+
+### Exit criteria for Phase 4
+
+`/audit/[domain]` takes any domain and produces a shareable one-pager. 10 free tools live. Prompt Studio works end-to-end (signup → scan → 50 prompts → bulk-add). Homepage and pricing reflect v2.1 copy.
+
+---
+
+## Phase 5 — Launch + outbound (weeks 12–16)
+
+Product ships. Now get customers.
+
+### Pre-launch
+
+- [ ] Write 4 cornerstone blog posts (per Copy Kit v2.0 Part 12):
+  - "The pivot" (public announcement)
+  - "What a visibility audit actually measures"
+  - "Standard vs frontier models — why both matter"
+  - "Citation attribution: tying AI answers to pipeline"
+- [ ] Custom OG images for all 4 blog posts.
+- [ ] Lighthouse audit marketing site — target 100/100/100/100.
+- [ ] Set up PostHog or Plausible on marketing site + app. Instrument key funnels:
+  - `audit_generated`, `audit_shared`, `signup_started`, `checkout_started`, `trial_converted`, `tracker_verified`, `first_run_complete`
+- [ ] Resend email templates wired up (all templates from Copy Kit v2.0 Part 9 + v2.1 section 5).
+- [ ] Public status page for brain + edge uptime.
+
+### Outbound prep
+
+- [ ] Build ICP list: 500 B2B SaaS companies across dev tools, data, marketing, security verticals (use BuiltWith / Wappalyzer / LinkedIn).
+- [ ] Run `/public/visibility-audit` on all 500 domains overnight.
+- [ ] Manually review top 50 where audit surfaces something interesting.
+- [ ] Generate `/audit/[domain]` URLs for those 50.
+
+### Week 1 of launch (Monday of week 13)
+
+- [ ] Publish pivot announcement blog post.
+- [ ] Post to HN: "Show HN: ReadyForLLM — AI visibility for B2B SaaS."
+- [ ] X thread of pivot announcement.
+- [ ] LinkedIn post of pivot announcement.
+- [ ] Send 20 cold emails/day from the prepared list (5 working days × 20 = 100 first week).
+
+### Weeks 2–4 of launch
+
+- [ ] 20 cold emails/day continued.
+- [ ] Two blog posts per week.
+- [ ] Three X threads per week, one LinkedIn post per week.
+- [ ] Reply to every DM, mention, and HN comment within 4 hours.
+- [ ] Ship one new free tool per week.
+
+### Exit criteria for Phase 5
+
+- 10+ paying customers (any mix of tiers).
+- Audit URL has been run on 1,000+ domains organically.
+- First customer conversation recorded and reviewed.
+- At least one agency conversation initiated (for Phase 6).
+
+---
+
+## Phase 6 — Iterate (months 5+)
+
+Based on real usage data, not hypothesis. Triggers from the kill-signal dashboard (Pricing v4 section 8).
+
+### Monthly review cadence
+
+Every first of the month, pull these numbers:
+
+| Metric | Source | Target | Kill signal |
+|---|---|---|---|
+| New trials started | PostHog | 30+/mo | 10 for 2mo = outbound not working |
+| Trial-to-paid rate | Supabase | 25%+ | 15% for 3mo = trial too short or product too thin |
+| Avg Starter credit utilization | SQL | 50-80% | >95% = tier too small; 40% = too big |
+| Starter → Growth upgrade rate | Supabase | 15%/qtr | 5% = upgrade nudge broken |
+| Month 4+ monthly churn | Supabase | 5% | >8% = product retention problem |
+| Top-up attach rate | Polar | 10-20% | 5% = credit system underused; >30% = tiers sized wrong |
+| Prompt Studio attach on trials | PostHog | 70%+ | 40% = onboarding flow not surfacing it |
+| Frontier model usage (Growth+) | SQL | 15%+ of credits | 5% = frontier tier irrelevant |
+| NPS (quarterly survey) | Typeform | 30+ | 20 = retention issue brewing |
+
+### Backlog (prioritized by impact)
+
+**Month 5 priorities:**
+- Data warehouse sync (Fivetran-compat CSV export) — Scale tier feature
+- Webhook+API add-on ($79/mo) with full documentation
+- Self-serve API key management in settings
+- More integrations: HubSpot, Salesforce, Segment (starts as webhook, eventually native)
+
+**Month 6–7 priorities:**
+- Agency tier launch (only if ≥30 paying customers)
+- White-label dashboard + custom subdomain
+- Multi-brand workspaces (Scale tier)
+- Monthly "State of AI Citations in B2B SaaS" report generator (turns into marketing)
+
+**Month 8–12 priorities:**
+- Next.js / Vercel official integration package
+- WordPress plugin
+- Enterprise tier (only if inbound Enterprise inquiries happen)
+- Notion / Linear plugin for drift alerts
+- Prompt Studio v2 — re-scan on schedule, diff prompts over time
+
+### Things to consciously NOT build
+
+- Multi-tenant tracker script with customer config — keep dead simple
+- BYOK (self-serve) — Enterprise only
+- On-prem / self-hosted
+- Gamified "share of voice" dashboards
+- AI-generated "recommendations" for what content to write — too far into the GEO optimization bucket, not our product
+
+---
+
+## Weekly cadence (once Phase 5 is live)
+
+Reserve specific blocks every week. Solo founder discipline matters here.
+
+| Day | Block | Activity |
+|---|---|---|
+| Mon | AM | Review prior week metrics. Pick focus for the week. |
+| Mon | PM | Respond to every cold-email reply. Book calls. |
+| Tue | AM | Engineering (deep work). |
+| Tue | PM | Customer calls (if any). |
+| Wed | AM | Content (blog, X thread, LinkedIn). |
+| Wed | PM | Free tool work (new one per week). |
+| Thu | AM | Engineering (deep work). |
+| Thu | PM | Outbound (20 cold emails). |
+| Fri | AM | Customer support queue. |
+| Fri | PM | Build-in-public weekly recap post (every Friday, no skip). |
+| Sun | Morning | Personal review: what moved the needle, what didn't. |
+
+---
+
+## Summary for the impatient
+
+- **Phase 0 (week 1):** Kill Broadcasting/AI Shield from marketing and app, consolidate pricing, verify Polar signup.
+- **Phase 1 (weeks 2–4):** Credit ledger, `CreditService`, pre-flight checks, credit meter UI, top-up checkout. **Ship the billing spine.**
+- **Phase 2 (weeks 4–8):** Sentinel prompt runner, Competitive Share, prompts and competitors dashboard UI, 500-prompt curated library. **Ship the product.**
+- **Phase 3 (weeks 7–10, overlap 2):** Citation tracker redesign, citations dashboard, tracker verification. **Ship the moat.**
+- **Phase 4 (weeks 9–12):** Audit URL, 10 free tools, Prompt Studio, full homepage/pricing/feature page copy replacement. **Ship the wedge.**
+- **Phase 5 (weeks 12–16):** Public pivot announcement, cold outbound 20/day, content cadence. **Get customers.**
+- **Phase 6 (months 5+):** Iterate from real data. Agency tier when ≥30 customers exist.
+
+Target: **10 paying customers by end of week 16**, **60 paying customers by end of month 9**, **$18K MRR by end of month 12**. All realistic, all bootstrappable.
+
+The plumbing was done in v1. The billing spine drops in with Phase 1. The real product ships in Phases 2–3. The growth engine turns on in Phase 4. The business starts in Phase 5.
+
+Ship.
