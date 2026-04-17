@@ -12,6 +12,8 @@
 - Run `mint dev` to preview locally
 - Run `mint broken-links` to check links
 
+öööö
+
 ## Terminology
 
 {/* Add product-specific terms and preferred usage */}
