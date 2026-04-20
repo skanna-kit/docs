@@ -1,0 +1,511 @@
+---
+title: 'API Strategy'
+description: "Should we call each model provider directly, or route through OpenRouter as a single abstraction layer?"
+icon: "workflow"
+---
+
+# ReadyForLLM — LLM API Strategy: OpenRouter vs Direct
+
+**Date:** April 16, 2026
+**Status:** Decision doc. Ship with this approach from Phase 1 onward.
+**Based on:** Current 2026 pricing research + ReadyForLLM's specific use patterns.
+
+---
+
+## 0. The question
+
+Should ReadyForLLM call each model provider directly (OpenAI, Anthropic, Google, Perplexity, xAI, Mistral, DeepSeek), or route through OpenRouter as a single abstraction?
+
+Short answer: **Direct APIs for our core use case. OpenRouter as a fallback and for long-tail models only.** Let me show the math and reasoning.
+
+---
+
+## 1. The two approaches compared
+
+### Direct APIs (current plan in Architecture v2.1)
+
+```
+brain.readyforllm.com
+  ├── OpenAIClient  → api.openai.com
+  ├── AnthropicClient → api.anthropic.com
+  ├── GoogleClient → generativelanguage.googleapis.com
+  ├── PerplexityClient → api.perplexity.ai
+  ├── XAIClient → api.x.ai
+  └── MistralClient → api.mistral.ai
+```
+
+**You manage:** 6 API keys, 6 billing accounts, 6 rate limit regimes, 6 different error response formats.
+
+### OpenRouter
+
+```
+brain.readyforllm.com
+  └── OpenRouterClient → openrouter.ai/api/v1 → [every provider]
+```
+
+**You manage:** 1 API key, 1 credit balance, 1 API schema (OpenAI-compatible).
+
+---
+
+## 2. The real costs — with exact 2026 numbers
+
+Based on current OpenRouter pricing (Feb 2026):
+
+### Token pricing
+
+**OpenRouter passes through provider pricing at cost.** No markup on tokens. GPT-5 is $1.25/M input / $10/M output on both OpenAI and OpenRouter. Claude Sonnet 4.5 is $3/M in / $15/M out on both Anthropic and OpenRouter.
+
+Token cost = **identical** either way.
+
+### Platform fees
+
+OpenRouter charges **5.5% on credit purchases** (minimum $0.80 per purchase). So:
+- Buy $100 of credits → get $94.50 of inference power
+- Buy $1,000 of credits → get $945 of inference power
+- Effective markup: **5.5% on top of raw LLM costs**
+
+Direct APIs: no platform fee. You pay the provider's rate directly, and Stripe/payment fees are baked into that rate.
+
+### What 5.5% means for ReadyForLLM at scale
+
+Using our realistic cost projections from Pricing v4:
+
+| Month | Total LLM COGS (direct) | Added OpenRouter fee (5.5%) |
+|---|---|---|
+| 1 | $25 | +$1.38 |
+| 6 | $400 | +$22 |
+| 12 | $1,800 | +$99 |
+| 24 | $5,500 | +$302/mo |
+| 36 | $12,000 | +$660/mo |
+
+**Year 3 cost of OpenRouter: ~$7,900/year in platform fees.** Real money, though not catastrophic.
+
+But: this fee only applies if you pay with credit card. OpenRouter offers **BYOK (Bring Your Own Key)**: route through them but pay each provider directly with your own keys. BYOK fee is **5% on usage** (reportedly transitioning to a fixed monthly subscription in 2026).
+
+So the fee question is:
+- **OpenRouter with credits:** +5.5% of all LLM spend
+- **OpenRouter with BYOK:** +5% of all LLM spend (essentially same)
+- **Direct APIs:** 0%
+
+---
+
+## 3. Latency — where it gets interesting
+
+OpenRouter claims 25–40ms added latency. Independent benchmarks show **100–150ms in practice.** One test: 742ms through OpenRouter vs 622ms direct. That's a **20% latency penalty.**
+
+### Why this matters for us
+
+ReadyForLLM's LLM calls fall into two buckets:
+
+**Bucket A — Background cron jobs (Sentinel prompt runs)**
+- Fire every 10 minutes via cron
+- User never sees the latency directly
+- 100–150ms extra per call is invisible
+- **Latency doesn't matter here.**
+
+**Bucket B — Interactive free tools**
+- User clicks "Run audit" → waits for 2–4 model responses
+- Each query is already 3–8 seconds (the model itself is slow)
+- 100ms extra on top of 4,000ms is +2.5% — imperceptible
+- **Latency doesn't matter much here either.**
+
+**Neither of our workloads is latency-sensitive.** This isn't a voice chatbot or coding assistant. Our tolerance for added latency is high.
+
+So latency isn't a strong argument against OpenRouter for us.
+
+---
+
+## 4. Where OpenRouter actually shines for our use case
+
+### Genuine advantages
+
+1. **Rapid multi-model experimentation.** We test new models constantly. On OpenRouter, adding Grok 5 or Claude Sonnet 5 when it drops is changing one parameter. Direct integration means writing a new adapter class, handling a new auth scheme, mapping a new response format.
+
+2. **Unified response format.** Every model returns the same OpenAI-style `chat.completions` response. Our extraction logic is simpler because we don't need per-model response parsers.
+
+3. **Automatic fallbacks.** When Anthropic has an outage (happens quarterly), OpenRouter can route to a different provider transparently. For our background Sentinel runs, this is genuinely valuable — we don't want 3-hour gaps in our data when one provider goes down.
+
+4. **One billing relationship.** Polar + Supabase + Cloudflare + Vercel + Resend + Firecrawl + 6 LLM accounts = 12 subscriptions to manage. OpenRouter replaces 6 with 1. That's 5 fewer tax receipts, 5 fewer credit card auth failures, 5 fewer password rotations, 5 fewer 2FA accounts.
+
+5. **Simpler rate limit math.** OpenRouter's rate limits are across providers, managed as one pool. We don't need to juggle "OpenAI gives us 500 RPM but Anthropic 50 RPM and Google 60 RPM."
+
+6. **Single retry strategy.** Write `withRetry()` once for OpenRouter, vs once per provider.
+
+### Honest advantages of direct APIs
+
+1. **5.5% fee savings at scale.** ~$660/month saved at Year 3 levels.
+
+2. **Bleeding-edge features first.** When OpenAI ships a new responses API or Anthropic ships prompt caching, those features can take weeks/months to land on OpenRouter. We've seen this pattern multiple times.
+
+3. **Prompt caching is HUGE for us.** Anthropic's prompt caching reduces input token cost by 90%. We have a ~300 token system prompt we send on every query. Cached, that becomes effectively free. **OpenRouter supports Anthropic prompt caching but you often need explicit flags/config, and some features lag.**
+
+4. **Direct billing relationships matter at scale.** If we ever need to negotiate enterprise volume discounts (at ~$10K+/month LLM spend), going direct is the only path.
+
+5. **Data residency / compliance.** OpenRouter is an additional data-flow party. Not a problem for our use case (public brand data, no PII), but worth noting.
+
+---
+
+## 5. The specific cost impact of Anthropic prompt caching
+
+This is the deal-maker or deal-breaker. Let me work it out.
+
+Our system prompt is ~300 tokens. Repeated across every Sentinel run.
+
+**Without caching:**
+- 300 tokens × $3/M (Sonnet 4.5 input) = $0.0009 per call
+- 1,000 calls/day = $0.90/day = $27/month
+
+**With caching (Anthropic's prompt caching — 90% discount on cached tokens):**
+- 300 tokens × $0.30/M (cached rate) = $0.00009 per call
+- 1,000 calls/day = $0.09/day = $2.70/month
+- **Savings: $24.30/month on input tokens alone, for one model.**
+
+Applied across all our frontier model usage (Claude, maybe GPT-5 with their caching), prompt caching saves potentially **$100–300/month** at scale.
+
+**Does OpenRouter support prompt caching?**
+
+As of Feb 2026: OpenRouter supports Anthropic prompt caching but with caveats — you need to send cache_control breakpoints explicitly, some provider configs may not honor it, and OpenAI's native caching is handled differently. In practice it works, but the implementation is slightly more fragile.
+
+**Verdict on caching:** Direct APIs have cleaner caching support. This alone is probably $50–200/month in savings at scale, which offsets the developer time "saved" by OpenRouter's unified interface.
+
+---
+
+## 6. The recommendation: hybrid
+
+Neither pure approach wins. The right answer is **direct APIs for the 5 core models + OpenRouter for everything else.**
+
+### The architecture
+
+```
+rfllm-brain/src/services/llms/
+  ├── base.ts                  ← shared adapter interface
+  ├── openai.ts                ← GPT-4o-mini, GPT-5, GPT-5 mini (direct)
+  ├── anthropic.ts             ← Claude Haiku 4.5, Sonnet 4.5 (direct)
+  ├── google.ts                ← Gemini 2.5 Flash, Pro (direct)
+  ├── perplexity.ts            ← Sonar, Sonar Pro (direct)
+  ├── openrouter.ts            ← Everything else via OpenRouter
+  └── router.ts                ← Maps model_id → adapter
+```
+
+### Why direct for the core 4 providers
+
+These are the providers our paid customers see, named as their consumer apps ("ChatGPT", "Claude"). We want:
+- Maximum uptime (direct = fewer hops = fewer failure points)
+- Prompt caching support (direct is cleaner)
+- Ability to request volume discounts at scale
+- Lowest cost (no 5.5% fee)
+- Access to features the moment they ship (e.g., OpenAI's new reasoning endpoints)
+
+These also account for ~95% of our total LLM spend. Saving 5.5% on 95% of spend = saving 5.2% overall. At Year 3 scale, that's **~$7,500/year in real margin.**
+
+### Why OpenRouter for the long tail
+
+Grok, Mistral, DeepSeek, Llama, and any model that launches tomorrow should go through OpenRouter. Rationale:
+- These are 5% or less of our spend
+- Grok requires xAI account setup, Mistral requires La Plateforme, DeepSeek requires... their own thing — each a new integration
+- OpenRouter adds them the moment they launch, we inherit that
+- 5.5% on 5% of spend = 0.3% total overhead. Negligible.
+- If any of these grows to significant volume, we migrate to direct at that point
+
+### The router logic
+
+```typescript
+// src/services/llms/router.ts
+import { queryOpenAI } from "./openai";
+import { queryAnthropic } from "./anthropic";
+import { queryGoogle } from "./google";
+import { queryPerplexity } from "./perplexity";
+import { queryOpenRouter } from "./openrouter";
+
+export type ModelId =
+  // Direct-integrated (5% savings)
+  | "gpt-4o-mini" | "gpt-5" | "gpt-5-mini"
+  | "claude-haiku-4-5" | "claude-sonnet-4-5"
+  | "gemini-2.5-flash" | "gemini-2.5-pro"
+  | "perplexity-sonar" | "perplexity-sonar-pro"
+  // OpenRouter-proxied (convenience)
+  | "grok-4" | "mistral-large" | "llama-3.3-70b" | "deepseek-chat";
+
+export async function queryModel(
+  modelId: ModelId,
+  prompt: string,
+  options: QueryOptions
+): Promise`<`ModelAnswer> {
+  switch (modelId) {
+    case "gpt-4o-mini":
+    case "gpt-5":
+    case "gpt-5-mini":
+      return queryOpenAI(modelId, prompt, options);
+    case "claude-haiku-4-5":
+    case "claude-sonnet-4-5":
+      return queryAnthropic(modelId, prompt, options);
+    case "gemini-2.5-flash":
+    case "gemini-2.5-pro":
+      return queryGoogle(modelId, prompt, options);
+    case "perplexity-sonar":
+    case "perplexity-sonar-pro":
+      return queryPerplexity(modelId, prompt, options);
+    default:
+      return queryOpenRouter(modelId, prompt, options);
+  }
+}
+```
+
+All adapters implement the same `ModelAnswer` return shape, so downstream code doesn't care which one fired.
+
+---
+
+## 7. Specific integrations to build
+
+### Direct integrations (build in Phase 2)
+
+**OpenAI** — REST via `fetch` to `api.openai.com/v1/chat/completions`
+- Auth: `Authorization: Bearer ${OPENAI_API_KEY}`
+- Models: gpt-4o-mini, gpt-5, gpt-5-mini
+- Optional: prompt caching headers (OpenAI's version)
+
+**Anthropic** — REST via `fetch` to `api.anthropic.com/v1/messages`
+- Auth: `x-api-key: ${ANTHROPIC_API_KEY}` + `anthropic-version: 2023-06-01`
+- Models: claude-haiku-4-5-20251001, claude-sonnet-4-5-20250929
+- **Use prompt caching on system prompt** — 90% savings on repeated input tokens
+- Include `cache_control: { type: "ephemeral" }` on the system message
+
+**Google** — REST via `fetch` to `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`
+- Auth: `?key=${GEMINI_API_KEY}` query param
+- Models: gemini-2.5-flash, gemini-2.5-pro
+- JSON schema response format is supported for extraction passes
+
+**Perplexity** — REST via `fetch` to `api.perplexity.ai/chat/completions`
+- Auth: `Authorization: Bearer ${PERPLEXITY_API_KEY}`
+- Models: sonar, sonar-pro
+- Critical: Perplexity returns citation URLs in the response — parse and store those; they're gold for our product
+
+### OpenRouter integration (build in Phase 2, minimal effort)
+
+- REST via `fetch` to `openrouter.ai/api/v1/chat/completions`
+- Auth: `Authorization: Bearer ${OPENROUTER_API_KEY}`
+- OpenAI-compatible schema (same as our OpenAI adapter, just different base URL)
+- Add required headers: `HTTP-Referer: https://readyforllm.com`, `X-Title: ReadyForLLM`
+- Models: grok-4, mistral-large, deepseek-chat, llama-3.3-70b, and any new model that shows up
+
+The OpenRouter adapter is essentially the OpenAI adapter with different env var and base URL. ~30 lines of code to add.
+
+---
+
+## 8. Prompt caching specifics (the real cost optimization)
+
+Since this is potentially $50–$200/month savings, let me document exactly how to implement it.
+
+### Anthropic (Claude Haiku 4.5, Sonnet 4.5)
+
+```typescript
+// In the Anthropic adapter
+const response = await fetch("https://api.anthropic.com/v1/messages", {
+  method: "POST",
+  headers: {
+    "x-api-key": env.ANTHROPIC_API_KEY,
+    "anthropic-version": "2023-06-01",
+    "content-type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "claude-sonnet-4-5-20250929",
+    max_tokens: 1200,
+    system: [
+      {
+        type: "text",
+        text: SENTINEL_SYSTEM_PROMPT, // ~300 tokens
+        cache_control: { type: "ephemeral" }, // ← enables caching
+      },
+    ],
+    messages: [{ role: "user", content: userPrompt }],
+  }),
+});
+```
+
+The cached system prompt persists for ~5 minutes. Since Sentinel fires runs in batched cron cycles, the cache almost always hits — saving 90% on 300 input tokens × every query.
+
+### OpenAI (GPT-4o-mini, GPT-5)
+
+OpenAI automatically caches prompts longer than 1024 tokens. Our system prompt is ~300 tokens, so it **doesn't naturally cache**. Options:
+1. Pad the system prompt with consistent examples to >1024 tokens → caches automatically
+2. Accept no caching for OpenAI calls
+3. Use OpenAI's upcoming explicit caching API when it ships
+
+For now: accept no OpenAI caching. It's not a huge loss since GPT-4o-mini input tokens are cheap ($0.15/M).
+
+### Gemini
+
+Gemini supports prompt caching via `cachedContents`. More complex to set up (you create a cache object, then reference it in requests). Worth implementing if Gemini becomes >20% of our spend. **Defer to Phase 2.5** — not blocking.
+
+### Perplexity
+
+No prompt caching. Their Sonar models are heavily subsidized by search API costs anyway — no optimization available.
+
+---
+
+## 9. API keys needed (env vars to collect)
+
+Before Phase 2 starts, collect these and set them as Cloudflare Worker secrets:
+
+```bash
+# Direct integrations
+OPENAI_API_KEY
+ANTHROPIC_API_KEY
+GEMINI_API_KEY           # already set (used for existing extraction work)
+PERPLEXITY_API_KEY
+
+# OpenRouter (long-tail)
+OPENROUTER_API_KEY
+```
+
+Set via:
+```bash
+wrangler secret put OPENAI_API_KEY
+# paste value, enter
+```
+
+Each provider gives you free credits to start:
+- OpenAI: $5 free credit on new accounts (with phone verification)
+- Anthropic: $5 free credit (developer console)
+- Google: Gemini API has generous free tier
+- Perplexity: $5 free credit
+- OpenRouter: free models work out of the box; paid access requires credit purchase
+
+**Total account setup time: ~30 minutes.** One session, one credit card, done.
+
+---
+
+## 10. Fallback strategy (the "what if OpenAI is down" question)
+
+When a direct API fails, we have options:
+
+### Option A — Retry same provider with exponential backoff
+- 3 retries with 1s/2s/4s backoff
+- Works for transient 500s and rate limits
+- Does NOT work for extended outages (e.g., OpenAI down for 3 hours)
+
+### Option B — Fall back to OpenRouter for the same model
+- If OpenAI direct fails 3x, send the same request via OpenRouter (which may route to a healthy OpenAI region)
+- OpenRouter has global load balancing we don't have direct
+- Costs 5.5% extra, but only on fallback calls (rare)
+
+### Option C — Fall back to a substitute model
+- If GPT-4o-mini fails, retry with gpt-5-mini or gemini-2.5-flash
+- Keep the customer informed: "This run used Gemini because OpenAI was temporarily unavailable"
+- Preserves data continuity in Sentinel tracking
+
+**Recommendation:** Implement all three, layered:
+1. Direct retry (3x) — 99% of failures fixed here
+2. OpenRouter fallback — for extended outages on one provider
+3. Model substitution — only for critical paths (user-initiated tool calls, not Sentinel cron)
+
+For Sentinel background runs, accept the missed run and try again in 10 minutes. Don't substitute models silently — that corrupts the tracking data.
+
+---
+
+## 11. Honest financial comparison
+
+### Setup cost (one-time)
+
+| | Direct | OpenRouter |
+|---|---|---|
+| Account creation time | ~30 min across 6 providers | ~5 min for one account |
+| Developer time to integrate | ~3 days (one adapter per provider) | ~2 hours (one adapter) |
+| Initial free credits | ~$25 total across providers | $0 (need to buy credits) |
+
+### Ongoing operational costs
+
+| Metric | Direct | OpenRouter |
+|---|---|---|
+| Platform fees | $0 | 5.5% of spend |
+| Prompt caching savings | $50–200/mo at scale | Harder to access reliably |
+| Monitoring complexity | 6 dashboards | 1 dashboard |
+| Outage risk management | Manual | Automatic fallback included |
+| Volume discount potential | Yes (at $10K+/mo spend) | No |
+
+### Year-by-year financial impact
+
+| | Year 1 | Year 2 | Year 3 |
+|---|---|---|---|
+| Total LLM spend (direct) | $400 | $3,600 | $12,000 |
+| Added cost if using OpenRouter (5.5%) | +$22 | +$198 | +$660 |
+| Lost savings from prompt caching | +$400 | +$1,200 | +$2,400 |
+| **Total extra cost via OpenRouter** | **+$422** | **+$1,398** | **+$3,060** |
+| **3-year total extra cost** | | | **~$4,880** |
+
+### What OpenRouter saves in developer time
+
+- Maybe 3 days saved at initial setup = $1,200 of dev time at $400/day opportunity cost
+- Maybe 1 day/quarter saved on maintenance = $1,600/year
+- 3-year dev-time savings: ~$6,000
+
+**Net financial verdict: roughly break-even over 3 years.** The real decision is not cost — it's architectural preference.
+
+---
+
+## 12. The final recommendation (locked)
+
+### Hybrid approach:
+
+**Direct APIs for the 4 core providers** — OpenAI, Anthropic, Google, Perplexity. These account for ~95% of usage. Build proper adapters. Use prompt caching on Anthropic (and Gemini if it becomes meaningful). Accept the setup time investment because the savings compound for years.
+
+**OpenRouter for long-tail models** — Grok, Mistral, DeepSeek, Llama, any new model that shows up. One adapter handles all of them. 5.5% fee on `<`5% of spend is trivial.
+
+**Why this is right for us specifically:**
+- Our product promise is "tracking what the major consumer AI apps say" — ChatGPT, Claude, Perplexity, Gemini are THE named brands. These deserve first-class direct integration.
+- Long-tail providers (Grok, Mistral) are bonus surfaces. OpenRouter's convenience > direct here.
+- Prompt caching on Anthropic alone saves more than OpenRouter would save in setup time — compounding for years.
+- We're already comfortable managing multiple third-party integrations (Polar, Firecrawl, Resend, Supabase) — one more batch of four LLM providers isn't a significant operational burden.
+
+### If you had a different profile
+
+If ReadyForLLM were very different, the answer changes:
+
+- **Pure experimentation tool?** OpenRouter-only. Flexibility > savings.
+- **Single-model high-volume workload?** Direct only (for that model). 5.5% becomes real money.
+- **Compliance-heavy enterprise?** Direct only. Fewer parties in the data flow.
+- **Solo nocoder building a side project?** OpenRouter-only. Your time is more valuable than 5.5%.
+
+We're none of the above. We're a production B2B SaaS with multi-model core tracking and some long-tail model flexibility needs. Hybrid fits.
+
+---
+
+## 13. What to update in existing docs
+
+### Architecture v2.1 — section on LLM integrations
+
+Replace any vague "multi-model querying" language with:
+
+> Model queries route through `src/services/llms/router.ts`. The 4 core providers (OpenAI, Anthropic, Google, Perplexity) have direct adapters. All other models (Grok, Mistral, DeepSeek, Llama, future additions) route through OpenRouter. Core providers get prompt caching where supported (Anthropic, future Gemini). Setup requires API keys for all 5 endpoints.
+
+### Pricing Economics v4 — minor cost adjustment
+
+Line items that assume "we query these models directly" stay accurate for OpenAI/Anthropic/Google/Perplexity. For Grok (premium tier on Scale), add a note: "Grok is routed via OpenRouter; actual cost includes a 5.5% platform fee." Since Grok is `<`5% of Scale usage, this is a rounding-error impact on margins.
+
+### Roadmap v2 — Phase 2 update
+
+Phase 2 Sentinel build now includes:
+- Build adapters: `src/services/llms/openai.ts, anthropic.ts, google.ts, perplexity.ts, openrouter.ts`
+- Implement prompt caching on Anthropic adapter specifically
+- Wire all into `router.ts` with model_id → adapter mapping
+- Collect 5 API keys before Phase 2 begins
+
+### Phase 0.5 Claude Code prompt
+
+Add to Stage 0 (the read-before-write checklist): "Confirm OpenAI, Anthropic, Perplexity, OpenRouter API keys are set as Cloudflare Worker secrets. Gemini key already exists."
+
+---
+
+## 14. Summary for the impatient
+
+- **OpenRouter passes through token pricing at cost** — no markup on inference itself.
+- **5.5% platform fee on credit purchases** is the real cost. At Year 3 scale: ~$660/month.
+- **100–150ms latency penalty** vs direct — irrelevant for our use case (cron jobs + slow interactive tools).
+- **Prompt caching on Anthropic saves $50–200/month** at scale — harder to access reliably through OpenRouter.
+- **Go direct on the 4 core providers** (OpenAI, Anthropic, Google, Perplexity) — ~95% of spend, clean caching, zero platform fees.
+- **Use OpenRouter for the long tail** (Grok, Mistral, DeepSeek, Llama) — 5.5% fee on `<`5% of spend is trivial.
+- **One router file** dispatches by `model_id` → direct adapter OR OpenRouter.
+- **Setup cost: ~30 minutes** for 5 accounts. Done once.
+- **Don't debate this further** — this is a ~$3K/year decision. The architectural cleanliness of the hybrid approach matters more than the precise optimum.
+
+Ship the hybrid. Move on.

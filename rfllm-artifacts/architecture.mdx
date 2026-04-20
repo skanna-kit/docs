@@ -1,0 +1,396 @@
+---
+title: 'Architecture & Repo Guide v2.1'
+description: 'Definitive reference for how the four repos talk to each other, what lives where, and how to keep Vercel costs at zero.'
+icon: 'map'
+---
+
+
+# ReadyForLLM — System Architecture & Repo Guide v2.1
+
+*Definitive reference for how the four repos talk to each other, what lives where, and how to keep Vercel costs at zero.*
+
+**Last updated:** April 16, 2026
+**Version:** 2.1 — Credit system integration
+**Supersedes:** v2.0 (AI Visibility Analytics pivot)
+
+---
+
+## 0. What changed from v2.0
+
+Same four-repo architecture, same Vercel/Cloudflare split, same RLS-vs-brain pattern. The product pivot from v2.0 stands. **What's new in v2.1:**
+
+- **Credit ledger as the billing spine.** Every prompt run deducts credits. Customers see usage in real time. Tiers are defined by credit allocation, not hard prompt/model caps.
+- **New table: `credit_transactions`** — append-only ledger of every grant, consume, and refund.
+- **New column on `sites`: `credits_remaining`** — cached running balance, refreshed on every transaction.
+- **New endpoints:** `/credits/balance`, `/credits/topup`, `/credits/grant-monthly` (cron).
+- **Every prompt-run endpoint now does a credit pre-flight check** before firing the LLM call. If insufficient, return 402 Payment Required and pause the prompt.
+- **New product in Polar:** 5 top-up SKUs + Prompt Studio one-time + Webhook/API recurring + Seats recurring.
+
+Everything else from v2.0 architecture remains in force.
+
+---
+
+## 1. The four repos and what each one does
+
+```
+readyforllm-all/
+├── rfllm-marketing/   → readyforllm.com            (Next.js, Vercel)
+├── rfllm-app/         → app.readyforllm.com        (Next.js, Vercel)
+├── rfllm-brain/       → brain.readyforllm.com      (Cloudflare Worker) ← orchestration + credits
+└── rfllm-edge/        → edge.readyforllm.com       (Cloudflare Worker) ← tracker + llms.txt
+```
+
+**Single rule that makes the architecture work:**
+
+> Vercel renders UI. Cloudflare does everything else.
+
+**What each repo does in v2.1:**
+
+- **rfllm-marketing**: free tool flywheel + conversion content. No changes from v2.0.
+- **rfllm-app**: dashboard. **Now surfaces a persistent credit meter in the header** (reads from Supabase directly via RLS).
+- **rfllm-brain**: orchestration + **credit ledger management**. Every prompt run passes through a credit pre-flight check before hitting LLM APIs.
+- **rfllm-edge**: tracker + llms.txt. No changes from v2.0.
+
+---
+
+## 2. Traffic flow (with credit checkpoints)
+
+```
+                        ┌──────────────────────────┐
+                        │   readyforllm.com        │
+                        │   (Marketing, Vercel)    │
+                        └────────┬─────────────────┘
+                                 │
+                                 │ POST /public/* (no auth)
+                                 ▼
+                      ┌──────────────────────────┐
+                      │  brain.readyforllm.com   │
+                      │  (Cloudflare Worker)     │◄── cron (10min + hourly + daily)
+                      │                          │
+                      │  CreditService            │ ← NEW: pre-flight + ledger
+                      │  PromptRunService         │
+                      │  CompetitiveShareService  │
+                      │  Firecrawl · LLMs · Polar │
+                      └──┬──────┬─────────┬──────┘
+                         │      │         │
+                         ▼      ▼         ▼
+                    ┌────────┐ ┌────┐ ┌──────────┐
+                    │Supabase│ │LLM │ │  Edge    │
+                    │(source │ │APIs│ │  Worker  │
+                    │of truth│ └────┘ │(tracker +│
+                    │        │        │ llms.txt)│
+                    │+credit │        └──────────┘
+                    │ledger  │              ▲
+                    └────▲───┘              │ citation hits
+                         │                  │
+                         │ RLS reads        │
+                        ┌┴────────────────┐ │
+                        │ app.readyforllm │ │
+                        │ (Dashboard,     │ │
+                        │  Vercel)        │ │
+                        │                 │ │
+                        │ Credit meter    │ │
+                        │ Prompt/comp UI  │ │
+                        │ Writes → brain  │ │
+                        └─────────────────┘ │
+                                            │
+                        ┌───────────────────┴───────────┐
+                        │ Customer websites             │
+                        └───────────────────────────────┘
+```
+
+**Credit-related traffic paths in v2.1:**
+
+1. Customer adds a prompt → dashboard → brain `/prompts/add`. Brain checks credit balance: if sufficient, creates prompt and fires first run; if not, creates prompt in paused state, returns 402.
+2. Cron fires `/prompts/run-due` every 10 min → brain picks up due prompts → for each prompt, for each model: credit pre-flight → if OK, consume credits atomically, fire LLM call, store answer; if not, pause prompt, log.
+3. Polar webhook on `order.paid` (top-up) → brain `/webhooks/polar` → grant credits via `CreditService.grantTopup()`.
+4. Monthly cron at start of billing period → brain `/credits/grant-monthly` → grants subscription credits based on tier.
+
+---
+
+## 3. Database schema — v2.1 additions
+
+### New table: `credit_transactions`
+
+The append-only credit ledger. Every grant, consume, refund, or adjustment creates a row. The `credits_remaining` on `sites` is a denormalized cache of `SUM(amount)` from this table.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | `uuid` PK | |
+| `site_id` | `uuid` → `sites.id` | credits belong to the site (workspace), not the user |
+| `type` | `text` | `grant_subscription` / `grant_topup` / `grant_trial` / `consume_prompt_run` / `consume_drift_summary` / `refund` / `adjustment_admin` |
+| `amount` | `integer` | signed; positive for grants, negative for consumes |
+| `balance_after` | `integer` | denormalized running balance after this transaction (for audit clarity) |
+| `related_prompt_run_id` | `uuid` nullable | if `type = consume_prompt_run` |
+| `related_polar_order_id` | `text` nullable | if `type = grant_topup` |
+| `related_billing_period_start` | `date` nullable | if `type = grant_subscription` |
+| `expires_at` | `timestamptz` nullable | top-ups expire 90d after grant; subscription grants null |
+| `note` | `text` nullable | human-readable description for admin audits |
+| `created_at` | `timestamptz` | |
+
+**Indexes:**
+```sql
+CREATE INDEX credit_transactions_site_created_idx ON credit_transactions (site_id, created_at DESC);
+CREATE INDEX credit_transactions_type_idx ON credit_transactions (type);
+CREATE INDEX credit_transactions_expires_idx ON credit_transactions (expires_at) WHERE expires_at IS NOT NULL;
+```
+
+**RLS:**
+```sql
+CREATE POLICY "credit_transactions_select_own" ON credit_transactions FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM sites WHERE sites.id = credit_transactions.site_id AND sites.user_id = auth.uid() AND sites.deleted_at IS NULL));
+REVOKE ALL ON credit_transactions FROM authenticated, anon;
+GRANT SELECT ON credit_transactions TO authenticated;
+```
+
+### Column additions to `sites`
+
+| Column | Type | Notes |
+|---|---|---|
+| `credits_remaining` | `integer` | cached; source of truth is the transactions table |
+| `credits_allocation_monthly` | `integer` | per-tier: 6000/20000/80000 for Starter/Growth/Scale |
+| `credits_reset_at` | `timestamptz` | when the next monthly grant happens (driven by Polar billing date) |
+| `trial_credits_granted` | `boolean` default false | prevents double-granting trial credits on tier changes |
+
+### Columns to add to `tracked_prompts`
+
+| Column | Type | Notes |
+|---|---|---|
+| `credits_per_run` | `integer` | computed at prompt creation: `SUM(credits_per_model for models in prompt's model_set)` |
+| `models_set` | `jsonb` | array of model identifiers this prompt runs against |
+| `paused_reason` | `text` nullable | `out_of_credits` / `user_paused` / `tier_downgrade` |
+| `paused_at` | `timestamptz` nullable | |
+
+---
+
+## 4. Credit Service — the new critical service
+
+Lives at `src/services/CreditService.ts` in `rfllm-brain`. Stateless, service-role Supabase client.
+
+### Core operations
+
+```typescript
+// All methods throw on DB error; return plain objects, never Supabase wrappers.
+
+class CreditService {
+  // Atomic credit consumption — single SQL statement, can't double-spend
+  async consume(siteId: string, amount: number, relatedRunId?: string): Promise<{
+    balance_after: number;
+    success: boolean;
+  }>;
+
+  // Grant subscription credits (monthly cron)
+  async grantSubscription(siteId: string, amount: number, billingPeriodStart: Date): Promise<void>;
+
+  // Grant top-up credits (Polar webhook)
+  async grantTopup(siteId: string, amount: number, polarOrderId: string): Promise<void>;
+
+  // Grant trial credits (on signup, gated by trial_credits_granted flag)
+  async grantTrial(siteId: string): Promise<void>;
+
+  // Read balance (always from the denormalized column; reconcile job confirms)
+  async balance(siteId: string): Promise<number>;
+
+  // Pre-flight check: can we afford this run?
+  async canAfford(siteId: string, amount: number): Promise<boolean>;
+
+  // Reconciliation job — recomputes credits_remaining from ledger sum
+  // Runs nightly; alerts if denormalized value drifts >10 credits from ledger
+  async reconcile(siteId?: string): Promise<{ drifts: Array<{ siteId; expected; actual }> }>;
+}
+```
+
+### Atomic consume implementation (SQL-level)
+
+To prevent race conditions where two parallel prompt runs consume the same last credits, the `consume` operation must be a single transaction with a row-level lock:
+
+```sql
+BEGIN;
+UPDATE sites
+  SET credits_remaining = credits_remaining - :amount
+  WHERE id = :site_id
+    AND credits_remaining >= :amount
+  RETURNING credits_remaining;
+
+-- If the UPDATE returned 0 rows, insufficient credits — ABORT, return false.
+-- Otherwise, insert the ledger row:
+
+INSERT INTO credit_transactions (site_id, type, amount, balance_after, related_prompt_run_id)
+VALUES (:site_id, 'consume_prompt_run', -:amount, :balance_after, :run_id);
+COMMIT;
+```
+
+In Supabase/Postgres with the service-role client, this is wrapped in a single RPC function: `public.consume_credits(p_site_id UUID, p_amount INT, p_run_id UUID)` returning `INT` (new balance) or `NULL` (insufficient funds). **This is the critical integrity point of the whole billing system — it MUST be an RPC, not client-side multi-statement code.**
+
+### Expiration handling
+
+Top-up credits expire 90 days after grant. Nightly cron job runs:
+
+```sql
+INSERT INTO credit_transactions (site_id, type, amount, balance_after, note)
+SELECT site_id, 'expiration', -amount, credits_remaining - amount, 'Top-up credits expired'
+FROM credit_transactions
+WHERE type = 'grant_topup'
+  AND expires_at < now()
+  AND NOT EXISTS (SELECT 1 FROM credit_transactions expired WHERE expired.type = 'expiration' AND expired.note LIKE CONCAT('%', credit_transactions.id::text, '%'));
+```
+
+(Simplified — real implementation tracks expiration explicitly via a flag or linking table; the above is illustrative.)
+
+---
+
+## 5. Updated endpoint catalog
+
+### Endpoints unchanged from v2.0
+
+Everything in v2.0's catalog still exists with the same signature. Below are only the additions and modifications.
+
+### Endpoints modified to add credit pre-flight
+
+All of these now return **HTTP 402 Payment Required** with body `{ error: 'insufficient_credits', balance, required }` when the customer can't afford the operation.
+
+| Endpoint | Credit cost |
+|---|---|
+| `POST /prompts/add` | `credits_per_run` for one first run (fires immediately) |
+| `POST /prompts/run` (manual) | `credits_per_run` |
+| `POST /prompts/run-due` (cron) | per prompt, per model — consumed atomically before each LLM call |
+| `POST /competitors/add` | `credits_per_run` for first comparative run |
+| `POST /public/visibility-audit` | No credit cost (public, rate-limited separately) |
+| `POST /public/competitor-gap` | No credit cost (public, rate-limited separately) |
+
+### New credit endpoints
+
+| Endpoint | Method | Auth | Purpose |
+|---|---|---|---|
+| `GET /credits/balance` | GET | internal | Returns current balance + recent transactions for a site |
+| `POST /credits/topup-checkout` | POST | internal | Creates Polar checkout for a top-up pack; redirects customer |
+| `POST /credits/grant-monthly` | POST | **cron-only** | Iterates all active subscriptions, grants monthly credits |
+| `POST /credits/expire-topups` | POST | **cron-only** | Nightly, expires top-ups older than 90 days |
+| `POST /credits/reconcile` | POST | **cron-only** | Nightly, reconciles `sites.credits_remaining` vs ledger sum |
+
+### New Polar webhook handling
+
+`/webhooks/polar` now handles two additional event types:
+
+- `order.paid` where product is a top-up pack → brain calls `CreditService.grantTopup()` with the right amount based on the product ID
+- `order.paid` where product is Prompt Studio → brain triggers Prompt Studio job directly (no credit grant; Prompt Studio runs on our money)
+
+### Pricing FAQ for the engineer: where is each number?
+
+| Question | Where to edit |
+|---|---|
+| Change tier price | `rfllm-brain/src/lib/tiers.ts` + Polar product IDs in env |
+| Change credit allocation per tier | `rfllm-brain/src/lib/tiers.ts` (`creditsPerMonth` field) |
+| Change credits-per-model | `rfllm-brain/src/lib/models.ts` (new file — defines the 1/3/4 credit multipliers per model) |
+| Change top-up pack sizes | `rfllm-brain/src/lib/topups.ts` (new file — maps Polar product ID → credit amount) |
+| Change drift-summary credit cost | `rfllm-brain/src/services/PromptRunService.ts` (currently hardcoded to 1) |
+
+---
+
+## 6. Updated read/write decision matrix
+
+| Action | Path | Why |
+|---|---|---|
+| Show credit meter in header | App → Supabase (RLS) | Read `sites.credits_remaining` directly |
+| Show credit transaction history | App → Supabase (RLS) | Read `credit_transactions` directly |
+| Preview credit cost for a new prompt | App → Supabase (RLS) | Compute client-side from `credits_per_run` formula + selected models |
+| Add a tracked prompt | App → Brain `/prompts/add` | Brain does credit pre-flight, creates prompt, fires first run |
+| Buy a top-up pack | App → Brain `/credits/topup-checkout` | Brain creates Polar checkout, returns URL |
+| Polar confirms top-up payment | Polar → Brain `/webhooks/polar` | Brain grants credits via `CreditService` |
+| Monthly credit reset | Cron → Brain `/credits/grant-monthly` | Brain grants subscription credits based on tier + billing date |
+| Out-of-credits empty state | App → Supabase (RLS) | Dashboard checks `credits_remaining < 100` and surfaces a banner |
+
+---
+
+## 7. Dashboard UI — credit meter spec
+
+Rendered in the persistent header component, visible on every dashboard page. Three states:
+
+**Healthy (balance > 20% of monthly allocation):**
+```
+⚡ 4,238 / 6,000 credits · resets in 9 days
+```
+
+**Low (balance 5-20%):**
+```
+⚠️ 287 / 6,000 credits · resets in 9 days · [Top up]
+```
+
+**Exhausted (balance < 5%):**
+```
+🔴 12 credits remaining · 3 prompts paused · [Top up] [Upgrade to Growth →]
+```
+
+Clicking the meter opens a side panel showing:
+- Current balance
+- Projected exhaustion date based on trailing 7-day consumption rate
+- Breakdown of consumption by prompt/model (top 5)
+- Recent transactions (last 20)
+- Top-up CTAs
+- Upgrade CTA if trending toward tier upgrade makes sense
+
+---
+
+## 8. Trial mechanics (architecture notes)
+
+- On signup completion, brain calls `CreditService.grantTrial(siteId)` — grants **6,000 credits** with `type='grant_trial'` and `expires_at` set to 14 days out.
+- Trial site rows get `status='trial_active'` and `trial_ends_at` set.
+- At trial end (day 14): Polar bills the first subscription charge. If successful, brain calls `grantSubscription()` with the tier amount. If failed, brain sets `status='trial_expired'` and the account is read-only.
+- Trial credits that go unused at conversion time **do NOT roll over**. Fresh 6,000 on conversion.
+- Trial `expires_at` on the credit row is a hard stop — even if customer doesn't convert, trial credits zero out on day 14.
+
+---
+
+## 9. Feature keep/kill/demote matrix (v2.1 = unchanged from v2.0)
+
+No changes to the v2.0 feature matrix. Broadcasting still dead, AI Shield still dead as a paid feature, Auto-Manifest still a free tool, Sentinel/Competitor Shadow/Citation Tracker still the three pillars. The credit system is orthogonal to the feature roster.
+
+---
+
+## 10. Migration plan (additive only, no destructive migrations)
+
+```
+20260420000000_phase1_tracked_prompts.sql           -- (v2.0) tracked_prompts, prompt_runs, prompt_run_answers
+20260421000000_phase1_drift_and_shares.sql          -- (v2.0) prompt_drift_events, competitive_shares
+20260422000000_phase1_bot_logs_referrer.sql         -- (v2.0) bot_logs.ai_referrer, landing_path
+20260423000000_phase1_sites_tracker_flag.sql        -- (v2.0) sites.tracker_installed_at
+20260424000000_phase1_rls_policies.sql              -- (v2.0) RLS for new tables
+20260425000000_phase1_backfill.sql                  -- (v2.0) safe backfill
+-- NEW in v2.1:
+20260501000000_phase1_credit_transactions.sql       -- credit_transactions table + indexes + RLS
+20260502000000_phase1_sites_credits.sql             -- sites.credits_remaining, allocation_monthly, reset_at, trial_granted
+20260503000000_phase1_tracked_prompts_credits.sql   -- tracked_prompts.credits_per_run, models_set, paused_reason
+20260504000000_phase1_consume_credits_rpc.sql       -- the atomic consume_credits() Postgres function
+20260505000000_phase1_backfill_credits.sql          -- backfill any existing trial sites with initial credits
+```
+
+---
+
+## 11. Things we explicitly decided NOT to build
+
+From v2.0, still all valid:
+- Multi-tenant tracker script with customer-side config
+- Per-customer LLM API keys (BYOK) — deferred to Enterprise
+- Self-hosted/on-prem edition
+- White-label/agency tier — deferred to v2.5 (month 7+)
+
+**New v2.1 don't-build list:**
+- **Credit gifts between users.** Not building a "gift your friend 100 credits" feature. Complexity not worth it at this stage.
+- **Negotiable per-customer credit rates.** Enterprise is the exception; self-serve tiers are fixed-rate.
+- **Credit cashback / referral credits.** Possible later as a growth lever, not at launch.
+- **Token-based pricing (literal LLM tokens).** Tested the idea; credit abstraction is cleaner for customers and better for pricing stability.
+
+---
+
+## 12. Summary for the impatient
+
+- Same four repos, same Vercel/Cloudflare split, same pivot product as v2.0.
+- **Credit ledger is the new billing spine**: `credit_transactions` table, `credits_remaining` column, atomic `consume_credits()` Postgres RPC.
+- **Every prompt run does a credit pre-flight check.** 402 + pause if insufficient.
+- **New `CreditService` in brain.** New cron jobs: monthly grant, nightly expire, nightly reconcile.
+- **Polar webhook handles top-ups** by granting credits via `CreditService.grantTopup()`.
+- **Dashboard shows a live credit meter** driven by direct Supabase RLS reads.
+- Migrations are 100% additive — five new tables/columns added, zero destructive changes.
+- Credit pricing: 1 cheap / 3 frontier / 4 premium. Transparent to customers in the UI.
+
+Plumbing from v2.0 still correct. Billing has gained a real spine.

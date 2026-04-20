@@ -8,47 +8,83 @@
     "dark": "#15803D"
   },
   "icons": {
-  "library": "lucide"
-},
+    "library": "lucide"
+  },
   "favicon": "/favicon.svg",
   "navigation": {
-     "products": [
+    "products": [
       {
-        "product": "Core API",
-        "description": "Core API description",    
-        "icon": "api",
-        "groups": [
+        "product": "ReadyForLLM",
+        "description": "Everything related to ReadyForLLM",
+        "icon": "cpu",
+        "tabs": [
           {
-            "group": "Getting started",
-            "pages": [
-              "core-api/quickstart",
-              "core-api/authentication"
+            "tab": "Documentation",
+            "groups": [
+              {
+                "group": "Documents",
+                "pages": [
+                  "rfllm-artifacts/architecture",
+                  "rfllm-artifacts/branding",
+                  "rfllm-artifacts/copy-delta",
+                  "rfllm-artifacts/copywriting",
+                  "rfllm-artifacts/gtmark-2",
+                  "rfllm-artifacts/pricing-correction-maybe",
+                  "rfllm-artifacts/pricing",
+                  "rfllm-artifacts/prompt-studio-correction"
+                ]
+              },
+             
+              {
+                "group": "Endpoints",
+                "pages": ["core-api/users", "core-api/orders"]
+              }
             ]
           },
           {
-            "group": "Endpoints",
-            "pages": [
-              "core-api/users",
-              "core-api/orders"
+            "tab": "Roadmap",
+            "icon": "route",
+            "groups": [
+              {
+                "group": "Roadmap",
+                "pages": [
+                  "roadmap/phase-0",
+                  "roadmap/phase-1",
+                  "roadmap/phase-2",
+                  "roadmap/phase-3",
+                  "roadmap/phase-4",
+                  "roadmap/phase-5",
+                  "roadmap/phase-6"
+                ]
+              }
+            ]
+          },
+          {
+            "tab": "API ",
+            "icon": "globe",
+            "root": "api-rfllm/overview",
+            "groups": [
+               {
+                "group": "API (Brain)",
+                "pages": [
+                  "api-rfllm/api-strategy",
+                  "api-rfllm/public-endpoint-sec"
+                ]
+              }
             ]
           }
         ]
+       
       },
       {
-        "product": "Analytics Platform",
-        "description": "Analytics Platform description",
-        "icon": "chart-bar",
+        "product": "Skanna",
+        "description": "Related to Skanna App",
+        "icon": "smartphone",
         "pages": [
           "analytics/overview",
           "analytics/dashboard",
           "analytics/reports"
         ]
-      },
-      {
-        "product": "Mobile SDK",
-        "description": "Mobile SDK description",
-        "icon": "smartphone",
-        "href": "https://mobile-sdk-docs.example.com"
       }
     ],
     "tabs": [
@@ -57,9 +93,7 @@
         "groups": [
           {
             "group": "Documents",
-            "pages": [
-              "artifacts/pricing"
-            ]
+            "pages": ["artifacts/pricing"]
           },
 
           {
@@ -79,12 +113,9 @@
           },
           {
             "group": "Documents",
-            "pages": [
-              "artifacts/pricing"
-            ]
+            "pages": ["artifacts/pricing"]
           },
 
-          
           {
             "group": "Endpoint examples",
             "pages": [
@@ -110,18 +141,11 @@
           },
           {
             "group": "Getting started",
-            "pages": [
-              "index",
-              "quickstart",
-              "development"
-            ]
+            "pages": ["index", "quickstart", "development"]
           },
           {
             "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
+            "pages": ["essentials/settings", "essentials/navigation"]
           },
           {
             "group": "Writing content",
@@ -147,9 +171,7 @@
         "groups": [
           {
             "group": "API documentation",
-            "pages": [
-              "api-reference/introduction"
-            ]
+            "pages": ["api-reference/introduction"]
           },
           {
             "group": "Endpoint examples",
@@ -183,15 +205,15 @@
   },
   "contextual": {
     "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
+      "copy",
+      "view",
+      "chatgpt",
+      "claude",
+      "perplexity",
+      "mcp",
+      "cursor",
+      "vscode"
+    ]
   },
   "footer": {
     "socials": {

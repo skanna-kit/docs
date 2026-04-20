@@ -1,0 +1,760 @@
+---
+title: 'Go-To-Market Playbook v2.0'
+description: 'The new GTM strategy, positioning, channel mix, and execution plan for ReadyForLLM v2.0.'
+icon: 'megaphone'
+---
+
+# ReadyForLLM — Go-to-Market Playbook v2
+
+**Last updated:** April 16, 2026
+**Status:** Locked strategy document. Execute in order.
+**Supersedes:** The v1 "AI crawler infrastructure" GTM copy kit and everything attached to it.
+
+---
+
+## 0. What changed from v1
+
+v1 GTM targeted CTOs with technical cold emails about crawler policy. That's the wrong persona for v2 product. The new positioning ("how does AI describe your brand, and who does it cite instead") is a **growth/marketing leader's problem**, with CTO sign-off needed only for the tracker script install.
+
+This document rebuilds GTM from scratch around:
+- **New ICP:** B2B SaaS Head of Growth / Head of Marketing, not CTO
+- **New wedge:** the `/audit/[domain]` URL, shareable and personalized
+- **New budget reality:** $350–500/month GTM spend until $5K MRR
+- **New cadence:** 80 cold emails/day sustainable, compounding content, free tools as SEO bait
+- **New honesty layer:** build-in-public pivot announcement as Day 1 distribution moment
+
+---
+
+## 1. The new ICP — who we're selling to
+
+### Primary buyer: Head of Marketing / Head of Growth at B2B SaaS
+
+**The person:**
+- Title: Head of Marketing, VP Marketing, Head of Growth, Director of Demand Gen, occasionally Founder at earlier-stage companies
+- Company: B2B SaaS, $2M–$30M ARR, Series A through Series B
+- Team size: 3–25 person marketing/growth team
+- Owns budget: yes, up to $500/mo without approval; up to $2K/mo with minor justification
+- Tool stack: typically HubSpot or Marketo for marketing automation, Ahrefs or Semrush for SEO, uses Plausible/Mixpanel/Amplitude for product analytics, reads their own ChatGPT output at least weekly
+- Pain they feel every week: their CEO or board asks "how are we doing with AI search?" and they can't give a real answer
+
+**Why this person, not a CTO:**
+- CTO doesn't feel the "how does AI describe us?" pain directly. Head of Marketing does — their pipeline either grows or doesn't, and AI-mediated buying is rising.
+- Head of Marketing has less procurement friction at $89–$249/mo. A CTO buying infra goes through security review; a Head of Marketing buying analytics signs up with a company card.
+- Head of Marketing is in the **consideration phase right now**, actively searching for GEO/AEO tools, not waiting to be evangelized.
+
+**Where they live:**
+- LinkedIn (80% of them post; 95% are active at least weekly)
+- X / Twitter (50% of the savvy ones; the "Demand Curve" / "Lenny's Newsletter" crowd)
+- Newsletter subscriptions: Lenny's, Every, Marketing Brew, Growth Hacker, First Round Review
+- Communities: RevGenius, Demand Curve Community, Exit Five, MKT1
+- Podcasts (background): Lenny's, Marketing Against the Grain, My First Million
+
+### Secondary buyer: Technical founder at seed-to-Series-A B2B SaaS
+
+**The person:**
+- Title: Founder, Co-Founder, CEO (technical)
+- Company: $0–$2M ARR, 2–15 people
+- Wears every hat including marketing
+- Buys their own tools, makes decisions fast
+- Reads HN daily, Indie Hackers weekly, is on tech Twitter
+- Pain: "I should be thinking about AI search but there's 80 other fires"
+
+This person won't be the volume buyer, but they're the **highest-conviction early evangelists**. Land 10 of them and they'll tweet about you, drive compounding WOM, and bring their friends.
+
+### Tertiary buyer: SEO/growth agency serving B2B SaaS
+
+**Deferred until month 7.** Agencies churn badly if the product isn't rock-solid, and they sell to their clients, not themselves. Land 30 direct customers first, then open the agency tier.
+
+### Who we are NOT selling to (explicitly)
+
+- Enterprise marketing orgs (F500, F1000) — Profound owns this, we can't compete on logo; defer to month 18
+- Agencies on day 1 — see above
+- E-commerce, consumer brands, publishers — wrong category fit; the prompts aren't "best B2B X for Y"
+- Indie marketers/solopreneurs without a B2B SaaS product — they'll churn in month 2
+- Technical-only teams without marketing/growth function — low-adoption risk
+
+---
+
+## 2. The one-line pitch (memorize this)
+
+> *"I'm building ReadyForLLM — we show B2B SaaS teams how ChatGPT, Claude, Perplexity, and Gemini describe their brand every day, and tie AI-sourced visits back to real pipeline. It's the only AI-visibility tool that lives on your site."*
+
+35 seconds to deliver. Every cold email, every LinkedIn message, every HN intro, every podcast pitch uses a variation of this. If a variation is longer than 40 seconds, it's too long.
+
+---
+
+## 3. The wedge — how we get a first conversation
+
+### The `/audit/[domain]` URL is the entire top of funnel
+
+This is the single most important tactical decision in the GTM playbook. Every outbound motion, every content post, every free-tool flywheel ends with "here's the audit for yoursite.com."
+
+**Why it works:**
+1. The prospect sees data about their own company in 15 seconds. No signup, no demo, no call.
+2. It's shareable — one URL, one LinkedIn post, tells the prospect's whole team.
+3. It's personal — "we ran your site" is credibility they can't get from a blog post.
+4. It's cheap to run — ~$0.10 per audit in LLM costs, 100% automated.
+
+**Every audit URL MUST include:**
+- Where the brand appears (or doesn't) in ChatGPT, Claude, Perplexity, Gemini
+- One competitor cited in their place (pick the highest-ranked competitor found)
+- One specific fix: "you have no llms.txt" or "your robots.txt doesn't block Bytespider" or "no citation tracker installed — you're missing AI-referral data"
+- A clear signup CTA: "Track this daily in a 14-day trial of Starter"
+
+**Every cold email, every DM, every outreach touch references an audit URL for the recipient's domain.** No audit, no outreach. Non-negotiable.
+
+---
+
+## 4. GTM budget — bootstrapped and realistic
+
+### Pre-revenue through month 4: $350–500/month
+
+| Line item | Monthly cost | Notes |
+|---|---|---|
+| Cold email sending (Smartlead + Apollo Basic) | $97 | Apollo for lead sourcing, Smartlead for sending with warmup |
+| 3 sending domains (amortized from $30/yr) | $2.50 | `readyforllm.io`, `readyforllm.co`, etc. — never send from `readyforllm.com` |
+| LinkedIn Sales Navigator | $99 | Required for filtering by Head of Marketing + B2B SaaS |
+| Typefully (X + LinkedIn scheduling) | $20 | Native threading, analytics |
+| Free tools LLM COGS | $50 | Scales with traffic; low at start |
+| Prompt Studio preview COGS | $20 | ~200 uses/mo @ $0.10 each |
+| Resend transactional email | $15 | Free below 3K emails/mo |
+| Misc tooling buffer | $50 | Domain renewals, one-off purchases |
+| **Total** | **~$354** | Headroom to $500 |
+
+### $5K–$15K MRR: $750/month
+
+Add:
+- Claymation / Clay.com for enrichment ($149)
+- Second Smartlead workspace for segmented campaigns ($50)
+- Modest paid experiment budget (X ads, LinkedIn ads, podcast sponsorships) ($200)
+
+### $15K+ MRR: 15% of MRR reinvested in GTM
+
+This is where you start making deliberate bets — podcast sponsorship, conference appearance, paid content partnerships. Not before $15K MRR though. Discipline matters.
+
+### Things you are NOT buying in the first 12 months
+
+- **No display ads or programmatic anything** — useless for niche B2B, will burn $5K in a weekend
+- **No SDR outsourcing** — the audit URL + your founder voice IS the SDR motion, and external SDRs will screw up the honesty
+- **No Gartner/G2 premium listings** — wait for organic reviews first
+- **No sponsored search for competitor terms** — doesn't work for niche tools, CACs are insane
+- **No ZoomInfo / Clearbit Enterprise tier** — Apollo + manual LinkedIn is enough at this volume
+
+---
+
+## 5. Channel playbook — where customers actually come from
+
+Based on realistic conversion math across channels, this is the mix and when each kicks in.
+
+### Channel 1: Cold email (the workhorse)
+
+**Volume:** 80 emails/day × 20 working days = **1,600 emails/month**
+
+**Conversion math (realistic, with audit-URL personalization):**
+- 8% reply rate (good) → 128 replies/mo
+- 40% reply-to-meeting rate → 51 meetings/mo
+- 15% meeting-to-close rate → **~8 customers/month**
+
+**Month 1–4:** primary source of customers (~70–85% of new MRR)
+**Month 5–12:** declining share as other channels ramp (~30–50% of new MRR)
+
+**The sequence (3 touches over 10 days):**
+
+Day 0 — "I ran an audit"
+```
+Subject: AI audit of {company.com}
+
+Hi {firstName},
+
+I ran {company.com} through ChatGPT, Claude, Perplexity, and Gemini this morning. Three things stood out:
+
+1. {specific finding — e.g., "You don't appear in ChatGPT's top 3 for 'best {category} for {segment}' — {competitor} ranks #1 across all four models."}
+2. {specific finding — e.g., "Your site has no llms.txt, and your robots.txt allows every training crawler."}
+3. {specific finding — e.g., "No citation tracker installed, so AI-sourced visits aren't in your analytics today."}
+
+Full audit (shareable, no signup): {auditUrl}
+
+I'm building ReadyForLLM — we track every AI answer your buyers might see, and tie AI-referrer traffic to real visits. Free tier of our tools covers audits like this; paid plans start at $89 for daily tracking.
+
+Worth a quick look?
+
+— Elvar
+From Reykjavík
+```
+
+Day 3 — short followup
+```
+Subject: re: AI audit of {company.com}
+
+Quick followup. Core finding from Monday's audit: {one specific finding that's most material}. Two-min read: {auditUrl}
+
+Happy to just answer questions — no demo required.
+
+— Elvar
+```
+
+Day 10 — breakup
+```
+Subject: Closing the loop
+
+Won't keep emailing. Audit from Monday is still live at {auditUrl}. If AI visibility isn't a priority this quarter, fair enough — it's a new category. Ping me whenever.
+
+— Elvar
+```
+
+**Why this works:**
+- Each email is obviously personal (the findings are specific to the prospect's domain)
+- The ask is to read a URL, not book a demo
+- Three touches, done — no badgering, preserves reputation
+
+**Guardrails:**
+- Warm all 6 inboxes for 2 weeks before sending production emails
+- 80/day cap across all inboxes, not per-inbox
+- Never send from `readyforllm.com` — use `readyforllm.io` / `.co` for outreach
+- Mandatory opt-out link + physical mailing address (CAN-SPAM + GDPR requirements)
+- If reply says "not interested" or "remove" — instantly remove from sequence, ONE response touch max
+
+### Channel 2: Build-in-public on X + LinkedIn
+
+**Volume:** 3 X posts per week (1 thread, 2 single), 1 LinkedIn post per week
+
+**Conversion math:**
+- At 500 followers: ~1 new customer/month from X/LinkedIn combined
+- At 2,000 followers: ~4 new customers/month
+- At 5,000+ followers: ~10–15 new customers/month
+
+**Months 1–3:** low volume, building audience (~0–2 customers/mo)
+**Months 4–9:** compounding (~3–8 customers/mo)
+**Months 10+:** meaningful share (~10+ customers/mo)
+
+**The content pillars (rotate weekly):**
+
+1. **Data posts** — "I ran ReadyForLLM's audit on 50 B2B SaaS companies. Here's what I found." Post monthly "State of AI Citations in B2B SaaS" reports. Specific data nobody else has.
+
+2. **Build-in-public posts** — weekly transparent recap: MRR, customer count, what shipped, what broke, what was learned. The Pieter Levels / Jon Yongfook playbook. Works because it's honest.
+
+3. **Technical explainer posts** — "Why GPT-5 describes your pricing page differently than Claude 4.5 does" / "The difference between standard and frontier AI models for brand tracking" / "Why llms.txt doesn't matter and what to do instead." Educational, not promotional.
+
+4. **Contrarian take posts** — once a month, the spicy one. "Nobody needs an 'AI SEO strategy.' Here's what to do instead." "Most B2B SaaS teams are measuring AI visibility wrong." Earned reach.
+
+**Founder voice rules (hard):**
+- First person, specific numbers, real customer anecdotes (with permission)
+- Never promote a competitor's failure; always punch up, never down
+- Never say "we just launched X!" — always "shipped X this week. Here's what it does and what I got wrong."
+- 1 emoji per week maximum (Reykjavík 🇮🇸 in post signoff is the one)
+- Never link in the first tweet of a thread — put the link in reply #1 (X algorithm kills link-tweets)
+
+**Example week of content:**
+
+- Monday: X thread, "Ran AI visibility audits on 20 B2B SaaS companies last week. 17 of them don't appear in ChatGPT's top 3 for their own category. Thread 🧵"
+- Wednesday: LinkedIn post, "The difference between 'AI SEO' and actual AI visibility measurement. 3 things most teams are missing." (1,300 chars, no link until comments)
+- Friday: X single post, build-in-public recap, "Week 7 of ReadyForLLM. MRR: $X. Customers: Y. Shipped: [list]. Learned: [list]."
+- Sunday: LinkedIn post, sharing Monday's audit thread translated into a longer-form narrative
+
+### Channel 3: Free tools (organic SEO flywheel)
+
+**Volume:** traffic compounds slowly; takes 4–6 months for search to register new tools
+
+**Conversion math:**
+- Month 1–3: `<`100 tool uses/day, 2–4% convert to trial, ~1 customer/month
+- Month 4–8: 100–500 tool uses/day, ~3–8 customers/month from organic
+- Month 12+: 1K+ tool uses/day, 10–20+ customers/month from organic
+
+**The tools that will carry SEO (ranked by search volume):**
+
+1. **llms.txt Checker** — searches for "llms.txt checker" / "validate llms.txt" — ~500 searches/mo
+2. **AI Bot Audit** — "robots.txt AI bot checker" / "block ChatGPT bot" — ~1,500 searches/mo
+3. **Manifest Generator** — "llms.txt generator" / "create llms.txt" — ~2,000 searches/mo
+4. **AI Visibility Audit** — "ChatGPT brand checker" / "am I in ChatGPT" — ~800 searches/mo, growing fast
+5. **Parasite Blocklist** — "AI scraper blocklist" — ~200 searches/mo, high intent
+6. **Prompt Studio Preview** — "AI prompt generator for SEO" / "AEO prompts" — new category, growing
+7. **Competitor AI Gap** — "compare brands in ChatGPT" — emerging category
+8. **Citation Checker** — "is my site cited by ChatGPT" — ~300 searches/mo
+
+**SEO tactics per tool:**
+- Each tool page must have 800–1,500 words of unique copy (not just the tool widget)
+- Include 3–5 real example runs with screenshots (anonymized)
+- Internal links from every tool to the related paid feature ("Want this automated? See Answer Monitor")
+- External backlinks: Reddit /r/SaaS, r/GrowthHacking, r/marketing, HN weekly "show me" threads, and organic mentions via founder content
+- Submit each tool to ProductHunt individually (spaced out, one per month) — easier to launch a tool than a product
+
+**Conversion tactic in free tools:**
+- After every tool run, the result page shows "here's your score. [See the full paid version →]" with a contextual CTA tied to that tool
+- Email capture on "email me the PDF version" (always have this option; 20% of users take it)
+- Rate limit to 3 uses per IP per day on expensive tools — creates a signup wall for power users
+
+### Channel 4: Viral audit URLs
+
+**Volume:** unpredictable; 0–5 viral moments per year, each delivering 50–500 new trials
+
+**Conversion math:**
+- Per viral moment: 200 new audits run → 30 trials → 8–10 customers
+- Per year realistic: 3 such moments → ~25–30 customers/year
+- Can compound if people consistently share their audit scores on social
+
+**The mechanics:**
+- `/audit/[domain]` generates a dynamic OG image showing the brand + score
+- OG image is designed for social sharing — dark background, brand name in monospace, big score, "Audit by ReadyForLLM" subtle at bottom
+- Sharing the URL on X/LinkedIn automatically expands with the branded card
+- Each share is a new potential cold-lead entry point
+
+**Seeding the channel:**
+- Run audits on 50 well-known B2B SaaS companies at launch. Post your findings.
+- "Audited the top 30 Series A SaaS companies on AI visibility. Here are the 5 doing it best, 5 doing it worst." Every audit URL is clickable.
+- Each company you name becomes a potential retweet/share moment — especially if their score is unexpectedly low OR a surprising competitor ranks above them
+
+**Ethics note:** don't publicly shame low-scoring companies. Include them in aggregate data, never with individual shaming. The "5 doing it worst" framing is too aggressive — use "5 with the most upside" instead.
+
+### Channel 5: HN + Product Hunt launches
+
+**Volume:** 2 major launches per year (Phase 5 and mid-year), 4–6 tool-specific PH launches
+
+**Conversion math per launch:**
+- Good HN showing (front page for 12+ hours): 2,000–5,000 site visits, 100–300 trial signups, 20–50 customers from the tail
+- Product Hunt #1 of the day: 1,500–3,000 visits, 50–150 trials, 10–25 customers
+
+**The launches on the calendar:**
+
+- **Launch 1:** "The pivot from v1" (week 13 of the roadmap) — HN "Show HN: ReadyForLLM — AI visibility analytics (pivoted from v1)." The honest-pivot framing earns reach because it's genuinely rare and interesting.
+- **Launch 2:** "The audit report" (month 5) — publish a data-driven report on AI visibility across B2B SaaS categories. Submit as "Show HN: I audited 1,000 B2B SaaS companies for AI visibility. Here's what I found." Uses accumulated audit data.
+- **Launch 3:** "Prompt Studio" as standalone (month 7) — ProductHunt launch, positioned as a tool that writes prompts for you.
+- **Tool PH launches:** one per month, a specific tool. Less reach, but cumulative SEO + brand building.
+
+**HN launch rules (learned the hard way):**
+- Post at 9am PT on Tuesday or Wednesday
+- First comment from you: real transparency, real numbers, one concrete question for feedback
+- Respond to every comment within 15 minutes for the first 4 hours
+- Don't argue; concede good criticism publicly
+- Never post on a Monday (workaholic devs hate Mondays)
+- Never on Friday afternoon (dead zone)
+
+### Channel 6: Podcasts + newsletters (earned, later)
+
+**Volume:** 2 podcast appearances in the first 12 months; 5+ in year 2
+
+**Target pods (in order of realism for a solo founder):**
+- Indie Hackers Podcast (easy to get on, huge audience)
+- "The SaaS Revolution" / "Startups For the Rest of Us" tier
+- Harder: Lenny's Podcast, Masters of Scale, 20VC (defer to year 2)
+
+**How to pitch:**
+- Never cold pitch — show up in their comment section, guest-host someone's else pod first, get introduced
+- The pitch angle: "I'm the founder of the only AI visibility tool that measures actual pipeline from ChatGPT/Claude citations — happy to share the numbers"
+- Come with data: specific audit findings from their audience's likely companies
+
+**Target newsletters:**
+- Submit data stories to: Marketing Brew, Demand Curve, Lenny's Newsletter, First Round Review, Every, The Hustle
+- Don't pitch yourself — pitch a data story that happens to feature your tool
+
+### Channel 7: Word of mouth (the late-stage multiplier)
+
+**Volume:** 0 in month 1, compounding from month 6 onward
+
+**Conversion math:**
+- At 10 paying customers: ~1 WOM referral/mo
+- At 50 paying customers: ~4–6 WOM referrals/mo
+- At 150 paying customers: ~15+ WOM referrals/mo, possibly 25+% of new signups
+
+**Enabling WOM:**
+- First 20 customers get a hand-written email from you at day 7, day 30, day 90 — no template
+- After first successful Sentinel run, in-app prompt: "Share your findings on X?" with pre-written post template (optional, not spammy)
+- Referral program at month 6 — existing customer gets 1 month free per paying referral, new customer gets 20% off first 3 months. Keep it simple.
+- Build a public "customers" page at month 4 — with permission, list logos. Even 10 logos is enough to create credibility.
+
+---
+
+## 6. The 16-week launch sequence (weekly execution plan)
+
+This is the tactical week-by-week rhythm from Phase 5 onward (from Roadmap v2 — weeks 12–28 of building). Roadmap Phase 5 ("Launch + outbound") starts at week 12; this plan continues through week 28 of GTM execution.
+
+### Weeks 1–2 (roadmap weeks 12–13): Pre-launch prep
+
+**Goals:** set up outreach infrastructure, write launch content, prepare target list
+
+- [ ] Register + warm 3 sending domains (`readyforllm.io`, `.co`, `.dev`). 14-day warmup via Smartlead.
+- [ ] Apollo: build list of 500 B2B SaaS companies matching ICP. Export to Smartlead.
+- [ ] Run `/public/visibility-audit` against all 500 domains overnight. Store results in Supabase.
+- [ ] Manually review top 100 audits. Flag the 50 most "interesting" (low score + clear competitor gap).
+- [ ] Generate audit URLs for those 50 — `readyforllm.com/audit/{domain}` is already live from Phase 4.
+- [ ] Draft pivot announcement (blog + HN + X thread + LinkedIn) per Copy Kit v2.0 Part 12.
+- [ ] Schedule all three pivot-announcement posts for Tuesday of week 3 at 9am PT.
+- [ ] Draft first 4 cornerstone blog posts. Publish one per week starting week 3.
+
+### Week 3: Public pivot launch
+
+**Goals:** maximum earned reach on Day 1; first 3 customers via launch attention
+
+**Monday:**
+- [ ] Publish pivot blog post at 8am local
+- [ ] Share in /r/SaaS, /r/GrowthHacking, /r/EntrepreneurRideAlong
+- [ ] Pre-schedule X thread for Tuesday 9am PT
+
+**Tuesday (launch day):**
+- [ ] 9:00 PT: Post "Show HN" — link to blog, frame the honesty angle
+- [ ] 9:00 PT: Post X thread simultaneously
+- [ ] 9:30 PT: Post LinkedIn version
+- [ ] First 4 hours: respond to every comment/reply within 10 minutes
+- [ ] Evening: recap + thank-you post on both X and LinkedIn
+
+**Wednesday–Friday:**
+- [ ] First 10 cold emails sent from warmed domains (small batch to validate deliverability)
+- [ ] Respond to all continuing HN/X/LI conversations
+- [ ] Monitor signup analytics; expect 100–500 trial signups, 15–40 from HN alone
+
+**End of week target:** 10 trial signups, 1–3 paid conversions from launch attention
+
+### Weeks 4–7: Ramp cold outbound
+
+**Goals:** hit 80/day cold email volume; 3–5 customers/week
+
+**Daily rhythm:**
+- [ ] 80 cold emails sent (20 per sending inbox × 4 inboxes)
+- [ ] Reply to every response within 2 hours during waking hours
+- [ ] 1 X post + 1 LinkedIn engagement (reply to 5 relevant posts)
+
+**Weekly rhythm:**
+- [ ] Monday: review prior week's metrics, tune cold email copy based on replies
+- [ ] Wednesday: publish blog post (one per week)
+- [ ] Thursday: X thread (technical or data-driven)
+- [ ] Friday: build-in-public recap post
+- [ ] Friday afternoon: ship one new free tool (per roadmap Phase 4)
+
+**End-of-month-4 target:** 15 paying customers, $1,500 MRR
+
+### Weeks 8–12: Compound content + free tools SEO
+
+**Goals:** shift from pure outbound to mixed channel mix; start seeing organic signups
+
+**New activities:**
+- [ ] Second HN post — this time a data story ("I audited 200 B2B SaaS companies...")
+- [ ] First podcast pitch sent (Indie Hackers Podcast likely target)
+- [ ] Start submitting tools to Product Hunt (one per month)
+- [ ] Begin Reddit organic strategy: 3 valuable comments per day in target subreddits, sign off with soft brand mention only when genuinely relevant
+
+**Continue:**
+- [ ] 80 cold emails/day
+- [ ] 1 blog post/week, 3 X posts/week, 1 LinkedIn post/week
+- [ ] Ship one new free tool per week (continuing from Phase 4)
+
+**End-of-month-6 target:** 40 paying customers, $4,000 MRR
+
+### Weeks 13–16: Scale what works, kill what doesn't
+
+**Goals:** reach Phase 5 exit criteria — 10+ customers → now aim for 50+
+
+**Analyze data from weeks 1–12:**
+- [ ] Which content formats drove the most signups? Double down.
+- [ ] Which cold-email subject lines had highest reply rate? Use the winners only.
+- [ ] Which free tools drove the most conversions? Prioritize those for SEO investment.
+- [ ] Which ICP sub-segments converted best? Narrow the list.
+
+**Introduce:**
+- [ ] First paid experiment: $200/mo LinkedIn ads targeting Head of Marketing at 1,000 ICP companies
+- [ ] Start pitching for podcast appearances (if first pitch didn't land, try 3 more)
+- [ ] Guest blog pitches: Demand Curve, Lenny's, Every — offer a data-driven piece on AI visibility
+
+**End-of-month-9 target:** 60 paying customers, $8,500 MRR
+
+---
+
+## 7. Content calendar — what to publish, when
+
+### Weekly cadence (locked)
+
+| Day | Content | Platform | Target length |
+|---|---|---|---|
+| Monday | Audit findings or data post | X thread | 8–12 tweets |
+| Tuesday | Dev / tactical explainer | Blog post | 800–1,200 words |
+| Wednesday | Engaged comments/DMs | LinkedIn | Respond, don't post |
+| Thursday | Long-form opinion | LinkedIn post | 1,300 chars (reveal threshold) |
+| Friday | Build-in-public recap | X + LinkedIn | Short, numbers-forward |
+| Saturday | Reply + react mode | All | Engage with network |
+| Sunday | Prep for next week | Internal | Planning |
+
+### Monthly cadence
+
+- **First Monday:** publish a State-of-AI-Citations report with that month's aggregated audit data. Headline stat that gets screenshot-shared.
+- **Second Wednesday:** longer-form technical piece — case study, benchmark, or explainer
+- **Third Tuesday:** community-building post — "Here's what I'm thinking about for next quarter. What would you change?"
+- **Fourth Friday:** transparent monthly recap — MRR, customers, churn, lessons. Real numbers. Pieter Levels-style.
+
+### First 12 blog posts to write (in order)
+
+1. **"What we're changing about ReadyForLLM (and why)"** — the pivot announcement (published week 3)
+2. **"How ChatGPT actually describes your B2B SaaS brand"** — deep dive on model behavior with examples
+3. **"Standard vs frontier AI models: which one is watching your brand?"** — the model tier explainer
+4. **"Why Profound, Scrunch, and Ahrefs all miss citation attribution"** — competitive positioning
+5. **"The difference between GEO, AEO, and AI visibility measurement"** — category definition
+6. **"I audited 100 B2B SaaS companies on AI visibility. Here's what I found."** — first data report
+7. **"Building in public: month 1 of ReadyForLLM v2"** — first transparent MRR post
+8. **"Why llms.txt might not matter, and what actually does"** — contrarian technical
+9. **"How to write prompts that actually reflect how buyers search"** — practical how-to
+10. **"The 5 kinds of AI-referred traffic you're missing in Google Analytics"** — tactical marketer piece
+11. **"Open-sourcing our AI crawler blocklist (and why)"** — community play
+12. **"I audited 500 B2B SaaS companies. The state of AI visibility, Q3 2026."** — expanded data report (Month 5 launch piece)
+
+---
+
+## 8. Cold outreach — the full playbook
+
+### Building the list
+
+**Sources:**
+- Apollo.io for initial firmographics: B2B SaaS, $2M–$30M ARR, Series A/B, US or EU
+- LinkedIn Sales Navigator to filter by Head of Marketing / VP Marketing / Head of Growth at those companies
+- G2 + Capterra for identifying B2B SaaS companies by category (dev tools, marketing tools, etc.)
+- BuiltWith to filter by tech stack (if they run on Vercel/Next.js they match the ICP 85% of the time)
+
+**Segments to target (prioritized):**
+1. Dev tools + API companies ($2M–$15M ARR) — early adopters, technical founders, receptive to "infra + analytics" framing
+2. Marketing SaaS (data tools, attribution, CRO) — feel the AI search pain most acutely
+3. Analytics SaaS (Plausible-adjacent, Mixpanel-alternative category) — understand measurement-gap framing natively
+4. Security SaaS — high-trust buyers, cautious but good retention
+5. Fintech SaaS — last priority; procurement-heavy but high CLV
+
+**Don't target:**
+- VC-funded giants (Stripe, HubSpot, Notion) — wrong ICP, competitive to too many of our prospects
+- Pre-Series-A companies — no budget, no time, no signal
+
+### The audit-first approach (reminder)
+
+Before any outreach touch:
+- Run `/public/visibility-audit` on the prospect's domain
+- Run `/public/competitor-gap` against their top competitor
+- Note 3 specific findings that will appear in the email
+- Generate the audit URL
+
+**If the audit reveals nothing interesting,** skip that prospect. Generic emails convert at 1-2% reply rate; audit-specific emails convert at 8-12%. The filter is part of the targeting.
+
+### Reply handling
+
+**When a prospect replies:**
+
+Pattern 1 — "Tell me more" / "How does it work"
+- Short response, offer the 15-min walkthrough OR point them at a 2-min loom of the dashboard
+- Don't book a 30-min demo; not respecting their time scares off ICP
+
+Pattern 2 — "We already use Ahrefs / Profound / Semrush"
+- Acknowledge, differentiate on citation attribution
+- "Those all look at AI from the outside. We're the only tool that lives on your site and sees the actual click. Worth a 10-min walkthrough of the attribution data?"
+
+Pattern 3 — "Send me more info"
+- Don't send an info doc. Send the audit URL as "here's the one-pager I'd share internally."
+- Ask one specific question: "What would help you decide — seeing the full audit, or talking through it live?"
+
+Pattern 4 — "Not interested" / "Remove"
+- Remove from sequence. Reply once: "Understood. Happy to stay in touch if priorities shift. I'll keep shipping useful free tools at readyforllm.com/tools in the meantime."
+- Do NOT re-sequence in 6 months — it poisons the relationship
+
+Pattern 5 — "What's the pricing?"
+- Direct link to /pricing. Offer specific guidance: "For your site size and category, Starter at $89/mo is probably the right fit to test."
+
+### Deliverability hygiene
+
+**Non-negotiable:**
+- SPF, DKIM, DMARC on every sending domain
+- 2-week warmup for every new inbox
+- Max 80/day/sending-account
+- Include unsubscribe link + physical address (Reykjavík)
+- Immediately remove anyone who replies "remove" (mandatory, not polite)
+
+---
+
+## 9. Prompt Studio strategy — the corrected positioning
+
+Founder review caught that giving Prompt Studio away free on trials could bleed money if trials don't convert. The revised structure:
+
+**Free forever preview** at `/tools/prompt-studio-preview`:
+- 10 prompts generated from any domain, no login
+- Displayed publicly, shareable
+- Caps: 3 uses/day/IP (enforced via existing RATE_LIMIT KV)
+- Cost to us: ~$0.10/generation
+- Purpose: lead magnet; drives audit URLs
+
+**Paid: $29 one-time**, available anytime:
+- Full 50 prompts, categorized by stage and persona
+- Delivered in-product once paid
+- Available to trial users as a $29 purchase during trial
+- Available to anyone without a subscription (standalone product)
+
+**Paid customer reward (the key change):**
+- **After first successful subscription payment**, customers unlock one free Prompt Studio scan
+- Growth/Scale customers get one per month, free — generates an updated prompt set as their business evolves
+- Starter customers get one free after first payment; subsequent uses $29
+
+**Why this works:**
+- Preview drives signups (lead magnet, cheap at scale)
+- Full product carries $29 revenue for non-customers
+- Paid customer reward incentivizes conversion without giving away 92%-margin product to non-converters
+- Monthly refresh for Growth+ customers is a retention mechanism, not an acquisition cost
+
+**Net economic impact vs "free on trial":**
+- Assumed 200 trials/month × 70% attach rate × $0.76 COGS = **~$106/mo cost savings**
+- Assumed 15% of trials purchase Prompt Studio at $29 = **~$870/mo new revenue**
+- Net improvement: **~$976/mo** at 200 trials/mo volume
+
+That's enough monthly margin gain to fund the LinkedIn Sales Navigator + Apollo subscriptions, or to hire a part-time VA.
+
+---
+
+## 10. Metrics dashboard — what to track weekly
+
+Track these in a Notion table or Google Sheet every Monday. If any tripwire fires twice in a row, change strategy.
+
+### Acquisition metrics
+
+| Metric | Target by Month 3 | Target by Month 6 | Target by Month 12 | Tripwire |
+|---|---|---|---|---|
+| Cold emails sent/day | 80 | 80 | 100 | `<`40 for 2wk = infrastructure broken |
+| Cold email reply rate | 6%+ | 7%+ | 8%+ | `<`4% for 2wk = copy broken |
+| Meeting-booked rate | 30% | 35% | 40% | `<`20% for 2wk = ICP misalignment |
+| `/audit/[domain]` URLs generated | 500/mo | 2,000/mo | 5,000/mo | `<`200 = outbound paused |
+| Trial starts/month | 20 | 60 | 150 | `<`10 for 2mo = no top-of-funnel |
+| Trial-to-paid conversion rate | 25% | 30% | 35% | `<`18% for 2mo = product weak |
+| Net new customers/month | 6 | 18 | 50 | Below target 2mo = strategy rethink |
+
+### Revenue metrics
+
+| Metric | Month 3 | Month 6 | Month 12 | Tripwire |
+|---|---|---|---|---|
+| MRR | $1,800 | $5,500 | $15,000 | Below 60% of target = major rethink |
+| ARR run rate | $22K | $66K | $180K | — |
+| Blended margin | 63% | 65% | 66% | `<`55% = cost review |
+| Top-up attach rate | 8% | 15% | 20% | >30% = tier sizing wrong |
+| Prompt Studio $29 purchases | 10/mo | 30/mo | 80/mo | `<`5/mo at M3 = lead magnet not converting |
+
+### Engagement metrics (signals of PMF)
+
+| Metric | Target | Why |
+|---|---|---|
+| Day-7 active rate (trial) | 70%+ | Real engagement predicts conversion |
+| Day-30 active rate (paid) | 85%+ | Below = retention problem |
+| Prompt-tracking utilization | 50–80% of tier credits | Below = tier oversized |
+| Citation tracker installation rate (paid) | 75%+ | The moat only works if installed |
+| NPS (quarterly) | 30+ | Below 20 = customer satisfaction issue |
+
+### Channel attribution tracking
+
+Every signup, ask in onboarding: "How did you hear about us?" Free-text, not required. Manual review weekly. Expected rough mix over time:
+
+| Channel | Month 3 | Month 6 | Month 12 |
+|---|---|---|---|
+| Cold email | 75% | 45% | 25% |
+| Content (X + LinkedIn) | 10% | 25% | 30% |
+| Free tools / SEO | 3% | 10% | 20% |
+| HN / PH launches | 8% | 8% | 5% |
+| Word of mouth | 0% | 5% | 15% |
+| Other / unknown | 4% | 7% | 5% |
+
+If any single channel drops below expected for 2 months running, dig in.
+
+---
+
+## 11. Kill signals — when to pivot, when to persist
+
+Persistence is a virtue up to a point. These are the specific signals that say "don't just try harder — change something."
+
+| Signal | Trigger | Response |
+|---|---|---|
+| Trial-to-paid `<`15% for 3 consecutive months | Product too shallow for 14 days to show value | Shorten trial to 7d OR build a stronger day-3 "aha moment" email |
+| Cold email reply rate `<`4% for 2 consecutive months | Copy broken OR list broken | Rewrite subject lines first (50% of the fix); then audit list quality |
+| Month 4 MRR below $1,000 | Fundamentally wrong channel mix | Talk to 10 prospects who didn't buy; figure out objection; narrow ICP further |
+| Month 9 MRR below $5,000 | Product doesn't have pull in this market | Time to soul-search: is this a business, or should it be a feature of someone else's product? |
+| Cold email deliverability crashing (SPF failures, bounces) | Infrastructure broken | Switch to new set of warmed inboxes, investigate DMARC, reduce volume 50% for 2 weeks |
+| Churn >8% monthly at month 4+ | Product retention problem | Interview every churned customer; diagnose root cause; ship retention feature before any new acquisition work |
+| Prompt Studio $29 purchases zero in first 2 months | Marketing positioning broken | Revisit /pricing copy; ensure "Prompt Studio" is surfaced prominently on every relevant page |
+| HN or PH launch flops (no meaningful signups) | Message isn't landing | Post in r/SaaS asking for feedback on the pitch; rewrite based on responses |
+
+### The big kill signal
+
+**If by end of month 12 you have `<`$10K MRR AND conversion metrics are still weak:** this product doesn't have pull in this market. Options:
+1. Pivot to adjacent market (e-commerce brands? publishers? — different ICPs, different product shape)
+2. Reposition as done-for-you service at $2K-$5K/mo per client instead of SaaS
+3. Consider shutting down and joining a Profound-tier company as a technical hire with the knowledge you built
+
+Write this down at start: the plan is to be honest about this at month 12 regardless of what you want to believe.
+
+---
+
+## 12. First 30 days — the exact day-by-day
+
+Not a generalization. An actual schedule. Start this the Monday after Phase 4 ships.
+
+**Week 1 — Infrastructure**
+
+- Mon: Register 3 outreach domains, configure DNS (SPF/DKIM/DMARC), start inbox warmup
+- Tue: Set up Smartlead + Apollo accounts, import Apollo prospects (target 500)
+- Wed: Write 3 cold email templates in Smartlead, add first 10 prospects for testing
+- Thu: Generate `/audit/[domain]` URLs for those 10 prospects, manual review
+- Fri: Send first 5 test emails, verify deliverability
+
+**Week 2 — Content prep**
+
+- Mon: Finish first 3 cornerstone blog posts (pivot announcement + 2 others)
+- Tue: Write X thread version of pivot announcement
+- Wed: Write LinkedIn version of pivot announcement
+- Thu: Design OG images for blog + social
+- Fri: Schedule all 3 platform posts for next Tuesday 9am PT
+
+**Week 3 — Launch**
+
+- Mon: Final review of everything; publish blog at 8am local time
+- Tue: LAUNCH DAY. HN Show HN + X thread + LinkedIn, 9am PT. Respond all day.
+- Wed: Follow-up posts thanking HN commenters, share top feedback
+- Thu: First 20 cold emails sent from warmed inboxes
+- Fri: Weekly recap post. "Week 1 of ReadyForLLM v2 launch: X signups, Y conversations, Z customers."
+
+**Week 4 — Scale outbound**
+
+- Mon: Scale cold email to 40/day (2 inboxes operational)
+- Tue: Write next 3 blog posts in batch
+- Wed: First customer walkthrough (if any booked) — record it, use lessons to improve
+- Thu: 40 cold emails + 1 LinkedIn post + 1 X thread
+- Fri: 40 cold emails + weekly recap
+
+**End of month 1 target:** 5 paying customers, $450 MRR, 300 trial signups from launch attention and early outbound.
+
+---
+
+## 13. Agency channel (deferred, documented for later)
+
+Do not launch the agency tier before month 7 or 30 paying customers, whichever comes later. Notes for when you do:
+
+**Target agencies:**
+- SEO/growth agencies serving B2B SaaS specifically (not generalist)
+- 5–50 person teams
+- Already billing clients $3K-$10K/mo for content + SEO work
+- Look for agencies publicly posting about AI search / GEO
+
+**The pitch:**
+- "Offer your clients AI visibility as a $400-$600/mo line item. We provide the tool; you provide the strategy."
+- White-label dashboard + branded monthly reports
+- Agency Starter $499/mo for 5 clients, Growth $999 for 15, Scale $1,499 for 20
+
+**Outreach:**
+- Find agencies via LinkedIn, their blogs, speaking engagements
+- Audit URLs for their TOP 3 clients — cold email the agency principal with: "I audited 3 of your clients. Here's what they're missing on AI visibility. Your team could charge for this."
+- This is the most personalized and valuable outbound in the entire playbook
+
+**Don't:**
+- Don't build custom features for agencies before 5 agencies sign up and ask for the same thing
+- Don't offer revenue share or affiliate commissions on day 1 — the tier pricing handles the economics
+
+---
+
+## 14. Summary for the impatient
+
+- **New ICP: Head of Marketing / VP Marketing / Head of Growth at B2B SaaS, $2M-$30M ARR, Series A/B.** NOT CTOs.
+- **The wedge: `/audit/[domain]` URLs.** Every outbound touch references one. Personalized audits convert at 8-12% reply vs. 1-2% for generic pitches.
+- **GTM budget: $350-500/mo until $5K MRR.** Mostly Apollo + LinkedIn SalesNav + Smartlead. No paid ads in year 1.
+- **Channel mix over time:** cold email dominant in months 1-4; content + free tools compound from month 4; WOM kicks in month 6+; HN + PH deliver pulse events.
+- **80 cold emails/day, 6 inboxes, 3 domains, 3-touch sequence over 10 days.**
+- **Prompt Studio correction: NEVER free on trials.** Free 10-prompt preview for all; $29 one-time full; free to paid customers after first payment clears, monthly refresh on Growth+.
+- **Build-in-public weekly; one major data post monthly; one cornerstone blog post weekly.**
+- **Defer agency tier to month 7 or 30 customers.**
+- **Realistic targets: 5 customers month 1, 15 month 3, 40 month 6, 120 month 12.**
+- **Kill signal at month 12 if `<`$10K MRR: be honest about whether this is a business or a feature.**
+
+The plumbing is done. The product is clear. The story is honest. The ICP is specific. The wedge is real. Now the only question is how many 80-email days you can stack back-to-back.
+
+Ship.

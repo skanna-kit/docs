@@ -1,0 +1,149 @@
+---
+title: 'Pricing Corrections'
+description: 'Pricing refinements based on real-world token usage, trial abuse mitigation strategy, and a plan for expanding the free tool catalog.'
+icon: 'sparkles'
+---
+
+# ReadyForLLM — Pricing Patch (Prompt Studio Correction)
+
+**Date:** April 16, 2026
+**Purpose:** Correct the Prompt Studio positioning in Pricing-Economics-v4.md. Everything else in v4 remains in force.
+
+---
+
+## What's changing
+
+**Old positioning (v4, section 3):**
+`>` "Prompt Studio ($29 one-time, 92% margin, free on Growth+ trials) solves the cold-start problem."
+
+**New positioning:**
+`>` "Prompt Studio ($29 one-time, 92% margin) is a paid product. Customers unlock one free scan after their first successful payment. Growth/Scale customers get one free scan per month as a retention reward. Never free for trial users."
+
+---
+
+## Why the change
+
+Giving Prompt Studio away free on trials creates a one-way cost sink:
+- If 200 trials start in a busy month and 70% take the free Prompt Studio = 140 uses × $0.76 = $106/month in LLM COGS
+- With 35% trial-to-paid, only 49 of those 140 convert → 91 freeloaders cost us $69/mo with zero revenue
+- Worse: Prompt Studio is our **highest-margin product** (92%) — giving it away to non-converters is the exact opposite of what we should do with it
+- Founders got value for free; non-converters got the product's juiciest feature before paying a dollar
+
+**The corrected structure preserves all the lead-gen value while protecting margins:**
+
+### Free preview at `/tools/prompt-studio-preview`
+- 10 AI-generated prompts for any domain, no login
+- Publicly shareable, designed to drive trial signups
+- Rate limited: 3 uses/day/IP via existing RATE_LIMIT KV
+- Our cost: ~$0.10/generation
+- Purpose: lead magnet
+
+### Paid: $29 one-time (unchanged)
+- Full 50 prompts, categorized by funnel stage and persona
+- Available to anyone (logged-in paid subscribers, trial users, walk-ups)
+- Our cost: ~$0.76/generation
+- Margin: 92%
+
+### Paid customer reward (NEW)
+- **After first successful subscription payment**, customer unlocks one free Prompt Studio scan
+- **Growth and Scale customers get one free scan per month** — generates a refreshed prompt set as their business evolves
+- **Starter customers get one free after first payment; subsequent uses are $29 each**
+- Free customer scans are an intentional retention investment (cost: $0.76/scan × customer count)
+
+---
+
+## Economic impact of the correction
+
+Assuming 200 trials/month, 70% attach rate on the (old) free offering:
+
+**Under the old "free on trials" model:**
+- 140 Prompt Studio generations per month × $0.76 = **$106.40 in COGS**
+- 49 converters "earned" the free scan retroactively — fine
+- 91 non-converters got it for free — pure cost
+
+**Under the new "paid customer reward" model:**
+- ~49 converters each get 1 free scan after first payment = 49 × $0.76 = **$37.24 in COGS**
+- Of the remaining trials: maybe 15% purchase Prompt Studio at $29 during their trial to accelerate their setup = 30 purchases × ($29 − $0.76 − $1.30 Polar fee) = **$807 in margin**
+- Plus Growth/Scale retention refresh scans (estimate 10/mo at $0.76 COGS each) = $7.60 COGS, valued at ~$29 × 10 retention value
+- **Net monthly improvement: ~$870 in revenue, ~$70 in COGS savings = ~$940/mo better**
+
+**Annualized improvement at 200-trial-per-month volume: ~$11,300 of additional margin available for GTM reinvestment.**
+
+That's enough to fund:
+- Apollo Professional upgrade ($149/mo, unlocks 30K credits/mo vs 10K on Basic)
+- LinkedIn Sales Navigator for a second account (if you want to hire a sales contractor later)
+- OR: 3 months of modest LinkedIn ads in year 2
+
+---
+
+## What to update in the docs
+
+### Pricing-Economics-v4.md
+
+**Section 3, Add-on 2: Prompt Studio — replace the last paragraph with:**
+
+`>` **How it's positioned:**
+`>` - **Free preview:** `/tools/prompt-studio-preview` generates 10 prompts for any domain, no signup. This is the lead magnet; cost per use ~$0.10.
+`>` - **Paid $29 one-time:** available to anyone (trial users, walk-ups, paid subscribers). Delivers the full 50 prompts.
+`>` - **Paid-customer reward:** after first successful subscription payment, customer unlocks one free scan. Growth and Scale customers get one free scan per month (intentional retention investment).
+`>` - **Never free for trial users** (this was the v3 correction — free-on-trial positioning bled margin on non-converters).
+
+### Copy-Kit-v2.1-delta.md
+
+**Section 3 (signup flow updates), Step 3 — change the "Secondary" link:**
+
+Old:
+`>` *Secondary:* Or: **generate 50 prompts from your site with Prompt Studio** — free on your trial
+
+New:
+`>` *Secondary:* Or: **try Prompt Studio — 10 free prompts for your site**, no commit → [link to `/tools/prompt-studio-preview`]
+
+**Section 5 (transactional emails), Welcome email — change the Prompt Studio line:**
+
+Old:
+`>` 2. Want help picking prompts? **Prompt Studio is free on your trial** — it scans your site and suggests 50 buyer prompts tailored to your category. Normally $29; yours free.
+
+New:
+`>` 2. Want help picking prompts? **Try the 10-prompt preview for free** — it scans your site and shows what buyer questions you could track. Love the preview? Full 50-prompt version is $29, or it's yours free once your subscription activates on day 14.
+
+### GTM-v2.md
+
+Already reflects the correct positioning — no changes needed there.
+
+---
+
+## New transactional email (add to Copy Kit v2.1)
+
+### "Prompt Studio unlocked" email (fires immediately after first successful Polar payment)
+
+*Subject:* Your ReadyForLLM subscription is live — Prompt Studio is on the house
+
+*Body:*
+Hi {firstName},
+
+Welcome aboard. Your {tier} subscription just activated, and as a thank-you, your first **Prompt Studio scan is free** — normally $29. It'll generate 50 buyer prompts tailored to your site, categorized by funnel stage.
+
+[Run Prompt Studio now →]({studioUrl})
+
+{ifGrowthOrScale}
+Heads up: since you're on {tier}, you'll get a free Prompt Studio scan every month. Refresh your tracked prompts as your positioning evolves.
+`{/ifGrowthOrScale}`
+
+{ifStarter}
+Future Prompt Studio scans are $29 each. Or upgrade to Growth for a free monthly scan plus 20,000 credits (vs your current 6,000).
+`{/ifStarter}`
+
+Dashboard: {dashboardUrl}
+
+— Elvar
+ReadyForLLM
+
+---
+
+## Summary
+
+Single change: **Prompt Studio is never free on trials.** It's free on trials? No. It's a paid carrot ($29) for prospects, a free unlock after first payment, and a monthly retention perk on Growth/Scale.
+
+Annualized margin improvement: **~$11,300** at 200-trial/mo volume.
+
+Everything else in v4 pricing remains in force.

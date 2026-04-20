@@ -1,0 +1,633 @@
+---
+title: 'Public Endpoint Security Hardening'
+description: 'Display inline code and code blocks'
+icon: 'globe-lock'
+---
+
+# ReadyForLLM — Public Endpoint Security Hardening
+
+**Date:** April 16, 2026
+**Status:** Critical security gap identified. Ship before any expensive tool launches.
+**Priority:** HIGH — this can be exploited today to drain LLM budget
+
+---
+
+## 0. The threat you identified (and why it matters)
+
+Your current setup:
+- `/public/*` endpoints on `brain.readyforllm.com` are discoverable (in your frontend JS, in your blog, anywhere you link the tools)
+- Rate limiting is **per IP**
+- CORS allowlist limits *browsers*, but **CORS doesn't stop a Python script**
+
+The attack vector:
+
+```python
+# Anyone can do this from their laptop
+import requests
+for _ in range(10000):
+    requests.post(
+        "https://brain.readyforllm.com/public/ai-visibility-audit",
+        json={"domain": "random-target.com"},
+        headers={"X-Forwarded-For": random_ip()}  # spoof-attempt
+    )
+```
+
+Even without IP spoofing, an attacker with **$30 of residential proxies** can rotate through thousands of IPs. Your AI Visibility Audit costs $0.10 per call. **A malicious actor could spend $30 to burn $3,000 of your LLM budget in a weekend.**
+
+This gets worse as the tool library expands. At 25 tools with varying costs, one bored person on HN after a launch = real financial damage.
+
+---
+
+## 1. Why CORS alone doesn't protect you
+
+CORS is a **browser-enforced** policy. It tells a browser: "don't let JavaScript on untrusted-site.com read responses from brain.readyforllm.com."
+
+But:
+- A Python/Node script **ignores CORS entirely**
+- CORS only affects reads, not writes — a preflight-skipping `POST` with `Content-Type: text/plain` can bypass preflight
+- An attacker doesn't care if the response comes back readable — they care that the expensive work *happened* (the LLM call, the Firecrawl fetch)
+
+**CORS is user-experience, not security.** Treat it that way.
+
+---
+
+## 2. The defense-in-depth approach (6 layers)
+
+No single mechanism is enough. Stack them.
+
+### Layer 1: Signed ephemeral tokens (the main fix — your idea, sharpened)
+
+Instead of your frontend calling brain directly, the flow becomes:
+
+```
+Marketing site (Vercel)
+  → Next.js API route `/api/token` (server-side)
+  → Signs a short-lived token with HMAC-SHA256
+  → Returns token to browser
+Browser
+  → Calls brain /public/* with token in header
+Brain
+  → Verifies HMAC signature matches
+  → Checks token not-yet-expired
+  → Runs the tool
+```
+
+**The token:**
+```
+{
+  "purpose": "ai-visibility-audit",   // which tool it's allowed for
+  "iat": 1729382400,                   // issued at
+  "exp": 1729382460,                   // expires in 60 seconds
+  "nonce": "abc123xyz"                 // unique to this request
+}
+```
+Signed with HMAC-SHA256 using a shared secret (`TOOL_TOKEN_SECRET`). The secret lives in both environments as a server-side env var — **never in browser code**.
+
+**Why this works:**
+- A scraper can't just hit `/public/ai-visibility-audit` directly without a valid token
+- Tokens expire in 60 seconds, so stealing one doesn't help for long
+- Token is bound to a specific tool (`purpose`), so you can't steal a cheap-tool token to call an expensive tool
+- The nonce is one-time-use — we track used nonces in KV for 5 minutes, preventing replay
+- Attacker would need to:
+  1. Hit your Vercel `/api/token` endpoint (rate-limited by Vercel/Cloudflare in front of it)
+  2. Get a token
+  3. Use it within 60 seconds
+  4. Can't reuse the nonce
+
+### Layer 2: Token issuance is rate-limited at the Vercel layer
+
+The token-issuing endpoint is itself a choke point. Vercel's free plan does NOT have built-in rate limiting, but you have two good options:
+
+**Option A (preferred):** Put Cloudflare in front of your Vercel domain. Configure Cloudflare's free "Rate Limiting Rules" to cap `/api/token` calls per IP.
+
+**Option B:** Use Upstash Redis (free tier: 10K commands/day, plenty) to rate-limit token issuance per IP inside your Next.js API route. 10K commands/day = 10K tokens/day = plenty for real usage.
+
+**Limits per tool (proposed):**
+- Cheap tools (`llms-txt-checker`, `ai-bot-audit`): 30 tokens/hour/IP
+- Mid tools (`citation-checker`, `manifest-generator`): 10 tokens/hour/IP
+- Expensive tools (`ai-visibility-audit`, `competitor-ai-gap`, `wrong-facts-finder`): 5 tokens/hour/IP
+
+This is the FIRST defense — an attacker who tries to mass-generate tokens gets 429'd at this layer before they even reach your brain worker.
+
+### Layer 3: Daily global budget caps per tool
+
+In Cloudflare KV, track **total daily invocations per tool** across all IPs combined:
+
+```typescript
+// In brain worker, on every expensive-tool call:
+const dailyCount = await env.RATE_LIMIT.get(`global:${toolName}:${today}`);
+if (parseInt(dailyCount || '0') > DAILY_BUDGET[toolName]) {
+  return 429; // "Tool temporarily unavailable due to high volume"
+}
+```
+
+**Daily budget caps per tool (proposed):**
+- AI Visibility Audit: 2,000/day (= $200/day max = $6,000/month)
+- Competitor AI Gap: 2,000/day
+- Wrong Facts Finder: 3,000/day
+- Share of Voice: 1,500/day
+- Cheaper tools: 20,000/day
+- Free tools with zero LLM cost: unlimited
+
+If the cap hits, new users see: *"High demand! Try again in a few hours."* with a signup CTA. You never pay more than your budget.
+
+### Layer 4: Turnstile (captcha) on suspicious patterns
+
+Cloudflare Turnstile is free. Deploy it ONLY on:
+- Expensive tools (Tier S/A)
+- When an IP hits >3 requests in 5 minutes
+- On the token-issuing endpoint during cost spikes
+
+Turnstile is invisible to 95% of users (behavioral fingerprinting), catches almost all bots/scripts. Implementation: 5 lines of JS on the frontend, 1 verification call on the backend.
+
+### Layer 5: Request fingerprinting + anomaly detection
+
+Log these for every `/public/*` call:
+- IP address (from `CF-Connecting-IP`)
+- User-Agent string
+- Origin header
+- Referer header
+- Country (from `CF-IPCountry`)
+- ASN (from `CF-Ray` → lookup, or just country-level)
+
+In a daily cron job, flag anomalies:
+- Same UA + many IPs (residential proxy fingerprint)
+- Suspicious UA strings (`python-requests`, `curl`, `Go-http-client`)
+- Missing or spoofed Referer headers on tool calls
+- High-volume from one ASN
+
+Auto-ban (add to KV blocklist) for 24h when anomaly score exceeds threshold. Manual review for edge cases.
+
+### Layer 6: Origin validation on tokens
+
+When the Vercel token endpoint issues a token, it records:
+- The origin the request came from
+- The IP
+- The tool being requested
+
+When brain receives the token, it checks:
+- Signature valid? ✓
+- Not expired? ✓
+- Nonce unused? ✓
+- **Origin header on this request matches origin baked into token?** ✓ (optional strict mode)
+
+This makes cross-origin token theft hard — even if someone captures a token from your browser, their origin won't match when they replay.
+
+---
+
+## 3. Is this overkill?
+
+Short answer: **Layer 1 (signed tokens) + Layer 2 (rate limit on token issuance) + Layer 3 (daily budget caps) are the essential three.** Everything else is polish.
+
+If you implement only those three, you go from "attacker can drain $3K in a weekend" to "attacker can drain at most $200/day and only if they somehow bypass token issuance rate limits."
+
+Layers 4–6 are "nice to have" and add maybe 5–10% more protection while doubling the implementation cost.
+
+**Recommendation:** ship Layers 1–3 before any expensive tool launches. Add Layer 4 (Turnstile) when you hit your first real abuse event. Layers 5–6 when you have a real budget to worry about.
+
+---
+
+## 4. Implementation spec — signed token system
+
+### Environment additions
+
+Add to `rfllm-brain/wrangler.toml` and Vercel env vars:
+
+```bash
+# Shared between Vercel (server-side) and Cloudflare brain
+TOOL_TOKEN_SECRET="`<`random 32-byte hex string>"
+```
+
+Generate with:
+```bash
+openssl rand -hex 32
+```
+
+### New Next.js API route: `rfllm-marketing/app/api/tool-token/route.ts`
+
+```typescript
+// rfllm-marketing/app/api/tool-token/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { createHmac } from "crypto";
+import { cookies } from "next/headers";
+
+const TOOL_CONFIG = {
+  "ai-visibility-audit":  { ttlSeconds: 60, hourlyLimit: 5 },
+  "competitor-ai-gap":    { ttlSeconds: 60, hourlyLimit: 5 },
+  "wrong-facts-finder":   { ttlSeconds: 60, hourlyLimit: 5 },
+  "ai-share-of-voice":    { ttlSeconds: 60, hourlyLimit: 3 },
+  "brand-vs-category":    { ttlSeconds: 60, hourlyLimit: 10 },
+  "ai-faq-generator":     { ttlSeconds: 60, hourlyLimit: 10 },
+  "manifest-generator":   { ttlSeconds: 60, hourlyLimit: 15 },
+  "check-manifest":       { ttlSeconds: 60, hourlyLimit: 30 },
+  "audit-robots":         { ttlSeconds: 60, hourlyLimit: 30 },
+  "ai-readiness-score":   { ttlSeconds: 60, hourlyLimit: 15 },
+  "prompt-studio-preview":{ ttlSeconds: 60, hourlyLimit: 3 },
+  "citation-checker":     { ttlSeconds: 60, hourlyLimit: 10 },
+} as const;
+
+type ToolName = keyof typeof TOOL_CONFIG;
+
+export async function POST(request: NextRequest) {
+  const { tool } = await request.json() as { tool: ToolName };
+
+  if (!(tool in TOOL_CONFIG)) {
+    return NextResponse.json({ error: "Unknown tool" }, { status: 400 });
+  }
+
+  const config = TOOL_CONFIG[tool];
+
+  // Get client IP from Vercel's forwarded header
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+          ?? request.headers.get("x-real-ip")
+          ?? "unknown";
+
+  // Rate limit token issuance (Upstash Redis recommended; simplified here)
+  const rateLimitKey = `token-rl:${tool}:${ip}`;
+  // Pseudo-code for Upstash — use @upstash/ratelimit
+  // const { success } = await ratelimit.limit(rateLimitKey, config.hourlyLimit, "1h");
+  // if (!success) return NextResponse.json({ error: "Rate limit" }, { status: 429 });
+
+  // Origin check — only issue tokens if the request came from our own domain
+  const origin = request.headers.get("origin") ?? "";
+  const allowedOrigins = [
+    "https://readyforllm.com",
+    "https://www.readyforllm.com",
+    "https://app.readyforllm.com",
+    "http://localhost:3000",
+  ];
+  if (!allowedOrigins.includes(origin)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Build token payload
+  const nonce = crypto.randomUUID();
+  const iat = Math.floor(Date.now() / 1000);
+  const exp = iat + config.ttlSeconds;
+
+  const payload = { purpose: tool, iat, exp, nonce, origin, ip };
+
+  // Sign with HMAC-SHA256
+  const secret = process.env.TOOL_TOKEN_SECRET!;
+  const payloadB64 = Buffer.from(JSON.stringify(payload)).toString("base64url");
+  const signature = createHmac("sha256", secret)
+    .update(payloadB64)
+    .digest("base64url");
+
+  const token = `${payloadB64}.${signature}`;
+
+  return NextResponse.json({ token, expiresAt: exp });
+}
+```
+
+### New brain verification: `rfllm-brain/src/lib/verifyToolToken.ts`
+
+```typescript
+// rfllm-brain/src/lib/verifyToolToken.ts
+import { Env } from "../index";
+
+interface TokenPayload {
+  purpose: string;
+  iat: number;
+  exp: number;
+  nonce: string;
+  origin: string;
+  ip: string;
+}
+
+export async function verifyToolToken(
+  request: Request,
+  env: Env,
+  expectedPurpose: string
+): Promise`<`{ valid: false; reason: string } | { valid: true; payload: TokenPayload }> {
+  const token = request.headers.get("x-tool-token");
+  if (!token) return { valid: false, reason: "missing_token" };
+
+  const [payloadB64, signature] = token.split(".");
+  if (!payloadB64 || !signature) return { valid: false, reason: "malformed_token" };
+
+  // Verify HMAC
+  const expectedSig = await hmacSha256(env.TOOL_TOKEN_SECRET, payloadB64);
+  if (expectedSig !== signature) return { valid: false, reason: "bad_signature" };
+
+  // Decode payload
+  let payload: TokenPayload;
+  try {
+    const json = atob(payloadB64.replace(/-/g, "+").replace(/_/g, "/"));
+    payload = JSON.parse(json);
+  } catch {
+    return { valid: false, reason: "malformed_payload" };
+  }
+
+  // Expiration check
+  const now = Math.floor(Date.now() / 1000);
+  if (payload.exp `<` now) return { valid: false, reason: "expired" };
+
+  // Purpose binding
+  if (payload.purpose !== expectedPurpose) {
+    return { valid: false, reason: "wrong_purpose" };
+  }
+
+  // Nonce replay check via KV
+  const nonceKey = `nonce:${payload.nonce}`;
+  const existing = await env.RATE_LIMIT.get(nonceKey);
+  if (existing) return { valid: false, reason: "replayed_nonce" };
+
+  // Mark nonce used for 5 minutes (exp is 60s, but buffer for clock skew)
+  await env.RATE_LIMIT.put(nonceKey, "1", { expirationTtl: 300 });
+
+  return { valid: true, payload };
+}
+
+async function hmacSha256(secret: string, message: string): Promise`<`string> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(secret);
+  const msgData = encoder.encode(message);
+  const key = await crypto.subtle.importKey(
+    "raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, msgData);
+  return btoa(String.fromCharCode(...new Uint8Array(sig)))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+}
+```
+
+### Updated public endpoint handler
+
+```typescript
+// rfllm-brain/src/services/PublicService.ts (snippet)
+
+static async aiVisibilityAudit(
+  request: Request,
+  env: Env,
+  cors: Record`<`string, string>
+) {
+  // Layer 1: Token verification
+  const tokenCheck = await verifyToolToken(request, env, "ai-visibility-audit");
+  if (!tokenCheck.valid) {
+    return json({ error: "Forbidden", reason: tokenCheck.reason }, 403, cors);
+  }
+
+  // Layer 2: IP-based rate limit (existing)
+  const limited = await this.rateLimit(env, request, "aiVisibilityAudit", 3, 60, cors);
+  if (limited) return limited;
+
+  // Layer 3: Global daily budget cap
+  const today = new Date().toISOString().slice(0, 10);
+  const globalKey = `global:ai-visibility-audit:${today}`;
+  const current = parseInt(await env.RATE_LIMIT.get(globalKey) || "0");
+  const DAILY_CAP = 2000;
+  if (current >= DAILY_CAP) {
+    return json({ error: "Tool temporarily at capacity. Sign up to bypass." }, 429, cors);
+  }
+  await env.RATE_LIMIT.put(globalKey, String(current + 1), { expirationTtl: 86400 * 2 });
+
+  // Actual tool logic ...
+}
+```
+
+### Frontend client helper
+
+```typescript
+// rfllm-marketing/lib/tool-client.ts
+
+export async function callTool`<`T = unknown>(
+  tool: string,
+  body: unknown
+): Promise`<`T> {
+  // Step 1: Get a token from our own Vercel API
+  const tokenRes = await fetch("/api/tool-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ tool }),
+  });
+
+  if (!tokenRes.ok) {
+    const err = await tokenRes.json();
+    throw new Error(`Token issue failed: ${err.error}`);
+  }
+
+  const { token } = await tokenRes.json();
+
+  // Step 2: Call brain with the token
+  const brainUrl = process.env.NEXT_PUBLIC_BRAIN_URL;
+  const res = await fetch(`${brainUrl}/public/${tool}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-tool-token": token,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || `Tool call failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+```
+
+Usage in a tool page:
+
+```typescript
+// app/tools/ai-visibility-audit/page.tsx
+
+import { callTool } from "@/lib/tool-client";
+
+async function handleAudit(domain: string) {
+  const result = await callTool("ai-visibility-audit", { domain });
+  // render result...
+}
+```
+
+---
+
+## 5. Budget caps per tool (proposed values)
+
+Set these in an env var or a KV-backed config so you can adjust without redeploy:
+
+| Tool | Cost/use | Daily cap | Monthly cost if capped out | Hourly IP limit |
+|---|---|---|---|---|
+| AI Visibility Audit | $0.10 | 2,000 | $6,000 | 5 |
+| Competitor AI Gap | $0.12 | 2,000 | $7,200 | 5 |
+| Wrong Facts Finder | $0.035 | 3,000 | $3,150 | 5 |
+| Share of Voice | $0.045 | 1,500 | $2,025 | 3 |
+| Brand vs Category | $0.03 | 3,000 | $2,700 | 10 |
+| AI FAQ Generator | $0.008 | 5,000 | $1,200 | 10 |
+| Prompt Studio Preview | $0.10 | 1,500 | $4,500 | 3 |
+| Category Prompt Universe | $0.025 | 3,000 | $2,250 | 10 |
+| Domain Ranking Battle | $0.02 | 3,000 | $1,800 | 10 |
+| AI Answer Diff | $0.015 | 5,000 | $2,250 | 10 |
+| Citation Checker | $0.012 | 5,000 | $1,800 | 10 |
+| Buyer Persona Prompts | $0.01 | 5,000 | $1,500 | 10 |
+| Manifest Generator | $0.006 | 10,000 | $1,800 | 15 |
+| AI Citation Lookup | $0.015 | 3,000 | $1,350 | 10 |
+| ChatGPT Screenshot | $0.008 | 5,000 | $1,200 | 10 |
+| AI Readiness Score | $0.005 | 20,000 | $3,000 | 15 |
+| Robots Generator | $0.003 | 10,000 | $900 | 15 |
+| llms.txt Checker | $0 | unlimited | $0 | 30 |
+| Bandwidth Calculator | $0 | unlimited | $0 | 30 |
+| Parasite Blocklist | $0 | unlimited | $0 | 30 |
+
+**Theoretical maximum daily spend if ALL tools hit cap simultaneously: ~$1,515** (~$45K/month).
+**Realistic expected daily spend with normal traffic: $50-100/day.**
+
+The caps are the safety net. They mean even under worst-case abuse (before the signed-token layer stops it), you never pay more than ~$1,500/day. In practice, the signed tokens should stop 99% of abuse before it hits the caps.
+
+---
+
+## 6. Emergency kill switch
+
+Add a global "tool_enabled" flag in KV:
+
+```typescript
+// Check at top of every expensive handler
+const enabled = await env.RATE_LIMIT.get(`tool-enabled:${toolName}`);
+if (enabled === "false") {
+  return json({
+    error: "This tool is temporarily unavailable for maintenance.",
+    hint: "Sign up for Starter to get this as part of your subscription."
+  }, 503, cors);
+}
+```
+
+If you see spending spike in your LLM dashboards:
+```bash
+wrangler kv:key put --binding=RATE_LIMIT "tool-enabled:ai-visibility-audit" "false"
+```
+
+Tool is dead in `<`30 seconds globally. You can re-enable when the attack subsides:
+```bash
+wrangler kv:key delete --binding=RATE_LIMIT "tool-enabled:ai-visibility-audit"
+```
+
+Build this INTO your admin dashboard at `app.readyforllm.com/admin/kill-switches` so you don't need to remember wrangler commands at 3am.
+
+---
+
+## 7. Monitoring & alerting
+
+Add these to your daily cron and wire to email:
+
+### Daily spend alert
+- Check OpenAI/Anthropic/Google API spend from yesterday
+- If spend > $50 for free tools → Slack/email alert
+- If spend > $200 → auto-disable all expensive tools via kill switch
+
+### Suspicious pattern alert
+- Check `free_scan_leads` table for anomalies:
+  - Same IP with >50 requests in 24h
+  - Same UA + 10+ different IPs
+  - Suspicious UAs (`python-requests`, `curl`, `Go-http-client/*`, bot keywords)
+- Auto-add offender IPs/UAs to blocklist for 24h
+
+### Weekly review
+- Top 10 IPs by tool usage
+- Geographic distribution of tool usage
+- UA distribution
+- Daily budget-cap hits
+- Tool usage vs conversion rate (are power users converting?)
+
+---
+
+## 8. What this doesn't solve
+
+Let's be honest about the remaining gaps:
+
+1. **Sophisticated attackers can still defeat this.** If someone really wants to abuse your tools, they can: scrape your frontend to understand the flow, build a headless browser that gets tokens from `/api/tool-token` legitimately, rotate residential proxies. No system stops a determined attacker. But this raises the cost of attack from $30 to hundreds of dollars of infrastructure, which eliminates 99% of casual abuse.
+
+2. **A legitimate high-traffic moment (HN front page) can hit caps.** If your caps are too aggressive, genuine users see 429s during your biggest moment. Tune caps generously and monitor — these are soft caps, raise them fast when traffic spikes.
+
+3. **The Vercel-to-Cloudflare hop adds ~50-100ms latency.** For free tools, this is fine (users expect a spinner). For real-time stuff it'd be too slow, but no free tool is real-time.
+
+4. **Cloudflare KV is eventually consistent (~60s propagation).** A determined attacker could squeeze ~60 extra calls through in the propagation window. Acceptable.
+
+---
+
+## 9. Implementation order (ship sequence)
+
+### Week 1 — The critical trio
+- [ ] Add `TOOL_TOKEN_SECRET` env var to Vercel + Cloudflare brain
+- [ ] Build `/api/tool-token` Next.js route
+- [ ] Build `verifyToolToken()` helper in brain
+- [ ] Add token check to the 3 most expensive existing endpoints: `ai-visibility-audit`, `competitor-ai-gap`, `generate-preview`
+- [ ] Update frontend to call `/api/tool-token` before every expensive tool call
+- [ ] Deploy + test end-to-end
+
+### Week 2 — Budget caps
+- [ ] Implement `global:{tool}:{date}` KV counter logic in brain
+- [ ] Add daily cap check to every `/public/*` endpoint with LLM COGS > $0.01
+- [ ] Document proposed caps (per table above) in code + `.env`
+
+### Week 3 — Monitoring & kill switch
+- [ ] Build admin page at `app.readyforllm.com/admin/kill-switches` with one-click disable per tool
+- [ ] Set up daily cost monitoring cron
+- [ ] Wire alerts to email (Slack if you're on it)
+
+### Week 4 — Origin validation + cleanup
+- [ ] Add strict origin validation to token verification (origin in request must match origin in token)
+- [ ] Add UA filtering to block known scraping tools
+- [ ] Refactor all expensive public endpoints to use the new `verifyToolToken` helper cleanly
+
+### Later (not blocking)
+- [ ] Cloudflare Turnstile integration on the most expensive tools
+- [ ] Daily anomaly detection cron
+- [ ] Automatic IP blocklist based on anomaly scores
+
+---
+
+## 10. Cost of the security layer itself
+
+- Next.js API route for tokens: covered by Vercel's free/existing plan, negligible
+- Upstash Redis for token rate limiting: free tier (10K commands/day) is enough
+- Cloudflare KV for nonce tracking + budget caps: free tier is 100K reads/day, 1K writes/day. Might need paid tier at $5/mo once you hit 1K tool uses/day (each use = 2-3 KV writes for nonce + counter)
+- Cloudflare Turnstile (Layer 4): free, unlimited
+
+**Total added monthly cost: $0 until ~1K tool uses/day, then ~$5-10/month at scale.**
+
+Trivial compared to what you save in prevented abuse.
+
+---
+
+## 11. What to update in existing docs
+
+### Architecture-v2.1.md
+- Update "Auth flow" section to include token-based auth for `/public/*`
+- Add `TOOL_TOKEN_SECRET` to env bindings table
+- Add `verifyToolToken()` helper description to Section 4
+
+### Roadmap-v2.md
+- Insert new Phase 0.5 before any expensive tools launch: "Implement signed token security for public endpoints"
+- Explicitly gate tools Tier S shipping on this being done
+
+### Free-Tool-Catalog.md
+- Every tool spec says "requires signed token from `/api/tool-token`" in the Technical Flow section
+- Daily caps documented per tool in each tool's spec
+
+### Copy-Kit-v2.1
+- Add error copy: "This tool is temporarily at capacity — free trial gets you unlimited access"
+
+---
+
+## 12. Summary for the impatient
+
+**The problem:** your `/public/*` endpoints are discoverable and rate-limited only by IP. An attacker with $30 of residential proxies can drain $3K of LLM budget in a weekend.
+
+**The fix (ship before any expensive tool launches):**
+
+1. **Signed ephemeral tokens** — frontend asks your Vercel `/api/tool-token` for a 60-second HMAC-signed token, brain verifies it before running the tool. Scrapers can't skip this.
+2. **Rate-limit token issuance** at the Vercel layer, per tool + per IP
+3. **Daily budget caps per tool** in KV — global counter, hard stop at configured threshold
+4. **Admin kill-switch page** for instant disable if anything goes wrong
+
+**Effort:** 1 week of work. **Cost:** $0 extra/month at current scale, ~$5-10/month at scale.
+
+**Result:** the cost of attack rises from $30 → hundreds of dollars, budget is capped at $1.5K/day worst case (and $50-100/day realistic), you get a kill switch.
+
+**Must ship:** before launching AI Visibility Audit, Competitor AI Gap, Wrong Facts Finder, or any other expensive tool. The current tools (llms.txt Checker, Bandwidth Calc, etc.) have near-zero cost so they're not at risk.
+
+Ship the trio (tokens + caps + kill switch) in Week 1 of Phase 4 of the roadmap, before any Tier S tool goes live.

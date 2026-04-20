@@ -1,0 +1,1489 @@
+---
+title: 'Copywriting & Messaging'
+description: 'The single source of truth for all customer-facing copy — homepage, feature pages, pricing, FAQ, transactional emails, dashboard microcopy, cold outreach templates, social bios, and the voice playbook that governs all of it.'
+icon: 'message-circle'
+---
+
+# ReadyForLLM — v2 Copy Kit
+
+*Every string that ships under the ReadyForLLM name. One source of truth.*
+
+**Last updated:** April 16, 2026
+**Version:** 2.0 — AI Visibility Analytics repositioning
+**Supersedes:** the v1 "AI crawler infrastructure" copy kit
+
+---
+
+## 0. Read this first
+
+This document contains **every piece of customer-facing copy** — homepage, feature pages, pricing, FAQ, transactional emails, dashboard microcopy, cold outreach templates, social bios, and the voice playbook that governs all of it.
+
+**Two rules for anyone editing this file:**
+
+1. **If you change a page, change the copy here first. Then paste it into the code.** The code's copy strings are derived artifacts; this doc is the source.
+2. **Never say something here that isn't provably true on the day it publishes.** The single biggest failure mode of v1 copy was claims the product couldn't back up (Broadcasting "confirms receipt with 4 frontier models," for example). Every sentence in v2 must survive a hostile reading from a technical prospect who runs `curl` on us.
+
+**What's different from v1:**
+
+- The headline narrative is **"AI visibility analytics for B2B SaaS."** Not "AI crawler infrastructure." Not "llms.txt at the edge." The product is the dashboard that shows you how AI sees you.
+- **Three pillars**, not six: AI Answer Monitor (Sentinel), Competitive AI Share (Competitor Shadow renamed), and Citation Attribution (the real moat).
+- **Broadcasting is dead.** Any copy that mentions "push to ChatGPT" / "ping OpenAI" / "4 frontier models notified" gets deleted. IndexNow is only for Bing and we barely mention it.
+- **AI Shield is dead as a sold feature.** Cloudflare ships this for free; we don't compete there.
+- **Auto-Manifest and Parasite Blocklist become free tools**, not reasons to buy.
+- **llms.txt delivery is a side utility**, not the headline. Mention it once per page max.
+
+---
+
+## Part 1 — Voice & positioning playbook
+
+### One-sentence positioning
+ReadyForLLM is the AI visibility analytics platform for B2B SaaS teams — we show you how ChatGPT, Claude, Perplexity, and Gemini describe your brand, which competitors they cite instead of you, and which AI answers are actually driving pipeline to your site.
+
+### One-paragraph positioning
+Classic analytics tools tell you which humans visit your site. ReadyForLLM tells you which AI answers send humans to your site — and which ones send them to your competitors instead. Every day we run your most important buyer prompts across ChatGPT, Claude, Perplexity, and Gemini, extract who gets cited in what order, and correlate that with real referrer traffic from a lightweight tracker on your site. For the first time, a B2B SaaS team can answer "is ChatGPT sending us revenue?" with a number instead of a guess.
+
+### The voice in one line
+Calm, technical, honest — like a senior engineer giving you a heads-up over coffee. Not a salesperson pitching you at a conference.
+
+### Always do
+- **Lead with the buyer's reality, not our feature.** "ChatGPT mentions 3 of your competitors before you" beats "our dashboard surfaces answer-share metrics."
+- **Use specific, provable numbers.** Not "hundreds of crawlers" — "GPTBot, ClaudeBot, PerplexityBot, Meta-ExternalAgent, Google-Extended, CCBot." Names build trust.
+- **Admit what's unknown.** When an LLM provider doesn't publicly confirm behavior, say so. "No AI provider publishes a content-push endpoint, so we don't pretend to notify them" is better copy than a false claim.
+- **Write like the reader is smarter than you.** The target reader knows what a CDN is, what a referrer header is, what a zero-click answer is. Don't explain LLMs to them.
+- **Use contractions and em dashes.** Formal voice reads as marketing; natural voice reads as human.
+- **End on a real ask or a real question.** "Want the full report?" beats "Ready to transform your AI strategy?"
+
+### Never do
+- **Never say ReadyForLLM "optimizes" your content for AI.** We measure it. Optimization is what the customer does with what we measure.
+- **Never imply we talk to LLM providers on your behalf.** We don't. No provider has a public ingestion endpoint. We measure output; we don't whisper in their ear.
+- **Never use "revolutionary," "game-changing," "cutting-edge," "leverage," "synergies," "unlock," or "supercharge."** If a VC deck-generator could write it, we don't ship it.
+- **Never pitch llms.txt as a proven SEO win.** It isn't. Major LLMs haven't publicly confirmed consumption. It's a future-proof bet, not a present-tense promise.
+- **Never promise "3-minute setup" without the honest asterisk.** Say "install the tracker in 3 minutes, see first data tomorrow" — because the first prompt run takes a Sentinel cycle.
+- **Never use emoji in cold outbound or in-app alerts.** The Reykjavík 🇮🇸 sign-off on founder-authored posts is the one exception.
+- **No exclamation points anywhere.** Not in headlines, not in CTAs, not in emails.
+
+### The honest value prop — memorize this
+> ReadyForLLM gives you three things: (1) daily tracking of how ChatGPT, Claude, Perplexity, and Gemini describe your brand across the prompts your buyers actually run; (2) side-by-side comparison with every competitor you care about, so you can see exactly which queries they win; and (3) referrer-level attribution from a one-line tracker on your site, so you know which AI answers drove real traffic and real trials. Works on any host — Vercel, Cloudflare, Netlify, Next.js, WordPress, Apache, Nginx.
+
+### The one-sentence version
+> See exactly how AI describes your brand, who it cites instead of you, and which answers are sending real pipeline — updated daily, across every major model.
+
+### The hard truth we lead with
+The category is new. No LLM provider publishes guaranteed citation signals. We can't promise your brand will rank #1 in ChatGPT next week. What we **can** do is tell you exactly where you stand today, where your competitors stand, and what's moving — so when you ship a change, you can measure whether it worked. That's the job. Anything more is vendor lies.
+
+---
+
+## Part 2 — Homepage (`app/page.tsx`)
+
+Replaces the existing `HOMEPAGE` constant end-to-end. Section structure matches the existing `ConversionPageProps` shape; drop-in replacement, no JSX changes needed.
+
+### Hero
+
+**Headline**
+> See how AI describes your brand. Before your buyers do.
+
+**Subheadline**
+> ChatGPT, Claude, Perplexity, and Gemini answer thousands of buyer questions about your category every day — and most B2B SaaS teams have no idea what they're saying. ReadyForLLM tracks every answer across every major model, shows you which competitors get cited instead of you, and ties it back to the pipeline it actually drives.
+
+**Primary CTA**
+> Start free — no credit card
+
+**Secondary CTA**
+> Run an audit on your site → (links to `/audit`)
+
+---
+
+### Problem section
+
+**Eyebrow**
+> The blind spot
+
+**Headline**
+> Your buyers are asking AI about your category right now. You're the last to know what it's saying.
+
+**Body**
+> A VP of Engineering types "best observability platform for Go services" into Claude. A founder asks ChatGPT "Stripe alternatives for B2B SaaS." A marketing director pastes four docs into Perplexity and asks "summarize which tool we should pick." Every one of those sessions ends in an answer that cites someone — and you have no idea whether it was you, your nearest competitor, or a company you've never heard of. Google Analytics won't tell you. Your CDN won't tell you. Your CRM won't tell you. The answer exists, buyers act on it, and the feedback loop back to your team doesn't exist. That's the gap ReadyForLLM closes.
+
+**Stats**
+- `4` — frontier models we track, every day: ChatGPT, Claude, Perplexity, Gemini
+- `0` — tools most B2B SaaS teams use to measure AI answers today
+- `1 line` — of JavaScript to tie AI citations back to real site visits
+
+---
+
+### How it works
+
+**Eyebrow**
+> How it works
+
+**Headline**
+> Three steps. First data tomorrow morning.
+
+**Step 1 — Tell us what to watch**
+> Pick the prompts your buyers actually run — or start from our B2B SaaS prompt library. Add the competitors you want to beat. Five minutes, no config files.
+
+**Step 2 — We run them across every model**
+> Every morning, Sentinel queries ChatGPT, Claude, Perplexity, and Gemini with your prompts. We extract who gets cited, in what order, on which models — and store the answers so you can see drift over time.
+
+**Step 3 — Install one tracker, connect citations to pipeline**
+> Drop a single script tag on your site. When a visitor lands from `chatgpt.com`, `claude.ai`, or `perplexity.ai`, we log it — and correlate that click with the prompts Sentinel tracked. For the first time, you know which AI answer sent that trial signup.
+
+---
+
+### Benefits (3-column grid, each with CTO + CMO angle)
+
+**Eyebrow**
+> What you get
+
+**Headline**
+> Built for the people who own brand — and the people who own the tracking.
+
+**Benefit 1 — Daily multi-model answer tracking**
+
+*Description:* Every prompt that matters to your category, run across all four major models, every day. Diffs, drift alerts, full answer history.
+
+*CTO angle:* Raw answer text + hashes stored per (prompt × model × run). Queryable via RLS. Export to CSV, JSON, or webhook to your warehouse.
+
+*CMO angle:* See every word an AI wrote about your brand this week. When a competitor ships a launch and ChatGPT rewrites your positioning, you know within 24 hours instead of finding out in a lost deal.
+
+**Benefit 2 — Competitive AI share**
+
+*Description:* Side-by-side scoring on every tracked prompt. Who gets cited first. Who gets cited most. Which weeks the ranking flipped.
+
+*CTO angle:* Weekly rollup materialized into `competitive_shares`. Leaderboard exports, per-model breakdowns, no SQL required.
+
+*CMO angle:* Walk into Monday with a one-page report of exactly which queries your competitors are winning that you aren't — and which content gaps are probably driving it.
+
+**Benefit 3 — Citation attribution nobody else has**
+
+*Description:* One-line tracker. We detect AI-provider referrers and tie each visit back to the tracked prompt that probably drove it.
+
+*CTO angle:* Tracker is under 2KB, async, fires only on AI referrer match. Data lands in `bot_logs.ai_referrer`. Raw events exportable.
+
+*CMO angle:* The only AI analytics tool that lives on your site. Every other vendor guesses from outside; we see the actual click. That's the difference between "AI is trending up" and "ChatGPT drove 34 trials last month on this prompt."
+
+---
+
+### ROI block
+
+**Eyebrow**
+> The math
+
+**Headline**
+> Every answer you don't see is a buyer you don't meet.
+
+**Body**
+> Analyst research puts AI-mediated discovery at 15–30% of B2B buying journeys today, rising past 50% by 2028. If even 10% of your pipeline is already touching an AI answer, you have a measurement gap the size of your content marketing budget. ReadyForLLM costs less than one recruiter call — and it's the only tool that can tell you whether the AI layer is working for you or against you.
+
+**Stats**
+- `Daily` — prompt runs across 4 models, from day 1
+- ```< 2KB``` — tracker script footprint, async, never blocks page load
+- `15 min` — typical setup time, tracker plus first 10 prompts
+
+---
+
+### Final CTA
+
+**Headline**
+> Start tracking AI visibility this afternoon.
+
+**Subheadline**
+> Free tier includes 10 tracked prompts, one competitor, and the citation tracker. No credit card, no demo call.
+
+**Primary CTA**
+> Start free — no credit card
+
+---
+
+### Homepage JSON-LD
+Keep the existing `SoftwareApplication` schema but update:
+- `applicationSubCategory`: `"AI Analytics"` (was `"AI Marketing & SEO"`)
+- `description`: `"AI visibility analytics for B2B SaaS. Track how ChatGPT, Claude, Perplexity, and Gemini describe your brand, see which competitors they cite, and tie citations to real pipeline."`
+- `offers.price`: `"79"` (was `"49"`)
+
+---
+
+## Part 3 — Feature pages (`lib/features-content.ts`)
+
+### Feature slug registry — v2
+
+The new `FEATURE_SLUGS` constant:
+
+```ts
+export const FEATURE_SLUGS = [
+  "answer-monitor",         // was "sentinel"
+  "competitive-share",      // was "competitor-shadow"
+  "citation-attribution",   // new primary pillar
+  "prompt-library",         // new, merged from Sentinel+Auto-Manifest pieces
+  "edge-delivery",          // kept, de-emphasized
+] as const
+```
+
+**Removed slugs:** `ai-shield`, `auto-manifest`, `broadcasting`. Those pages 301 to:
+- `/features/ai-shield` → `/tools/ai-bot-audit` (the free tool)
+- `/features/auto-manifest` → `/tools/manifest-generator` (the free tool)
+- `/features/broadcasting` → `/features/answer-monitor` (closest new page)
+
+---
+
+### Feature 1 — Answer Monitor (`/features/answer-monitor`)
+
+**Sidebar name:** Answer Monitor
+**Sidebar tagline:** See what AI says about you, every day, across every model.
+
+**Metadata**
+- Title: `Answer Monitor — Track how AI describes your brand, daily`
+- Description: `Answer Monitor runs your most important prompts against ChatGPT, Claude, Perplexity, and Gemini every day — and alerts you the second the answer starts to drift.`
+- OG image: `/og/features/answer-monitor.png`
+
+**Hero eyebrow:** Answer Monitor
+
+**Hero headline**
+> Know the day an AI changes its mind about you.
+
+**Hero subheadline**
+> Answer Monitor runs the prompts that matter to your buyers against every major AI model, every morning. You see the exact answers, the exact citations, and an alert the moment any of it starts to drift.
+
+**Problem eyebrow:** The silent rewrite
+
+**Problem headline**
+> Somewhere between today and next Tuesday, ChatGPT will start describing you differently. You won't know until a deal stalls.
+
+**Problem body**
+> AI answers are not static. A model gets retrained. A competitor publishes a comparison page that ranks higher. A popular Reddit thread moves the needle. One morning the answer to "is X HIPAA-compliant?" is correct; three weeks later it's half-wrong, and nobody on your team knows the story has changed. Answer Monitor is the smoke alarm for that kitchen fire.
+
+**Problem stats**
+- `4` — frontier models polled daily (ChatGPT, Claude, Perplexity, Gemini)
+- `Hundreds` — of prompts monitored per workspace, per tier
+- ```< 5 min``` — from drift detected to your inbox or Slack
+
+**How it works eyebrow:** How it works
+
+**How it works headline**
+> Set the prompts. We watch them while you sleep.
+
+**Step 1 — Pick your prompts**
+> Start from our B2B SaaS prompt library or import your own. "Best data warehouse for series B," "is X SOC 2 certified," "Stripe alternatives for marketplaces" — the real questions your real buyers type.
+
+**Step 2 — Run them daily**
+> Every morning, Answer Monitor sends each prompt to every major model. We store the full answer, extract who got cited, and hash the response for fast drift detection.
+
+**Step 3 — Alert on material drift**
+> When an answer changes in a way that matters — your positioning shifts, a new competitor appears, you drop out of the top three — Slack, email, or webhook fires within minutes.
+
+**Benefits eyebrow:** What it gives you
+
+**Benefits headline**
+> An early-warning system for the answers buyers actually see.
+
+**Benefit 1 — Daily answers, side by side**
+- Description: The same prompt, every model, every day. Full history, diffs, citations extracted.
+- CTO: Raw text stored per (prompt × model × run). Hashed for O(1) drift checks. Exportable.
+- CMO: See the same buyer question through four AI lenses without four logins. Brief the team in one tab.
+
+**Benefit 2 — Drift alerts that actually mean something**
+- Description: We alert only when material language shifts — not when a model's wording wiggles.
+- CTO: Configurable cosine-similarity threshold per prompt. Regex matchers. Severity tiers. Webhook payloads include old/new hash + one-line delta summary.
+- CMO: No alert fatigue. If it pinged you, something real changed. Bring receipts to the next leadership meeting.
+
+**Benefit 3 — Audit trail you can hand legal**
+- Description: Every claim, every model, every date — receipts on demand.
+- CTO: Immutable per-run records. Signed export bundles. CSV + JSON.
+- CMO: When legal asks "who told the AI that?", you have the answer in 30 seconds with a screenshot.
+
+**ROI eyebrow:** The math
+
+**ROI headline**
+> Catch a bad citation before a buyer does.
+
+**ROI body**
+> One wrong answer in ChatGPT can stall a six-figure deal for a month. Answer Monitor costs less than the post-mortem meeting — and it surfaces the story before it ever reaches your sales floor.
+
+**ROI stats**
+- `Daily` — tracking cadence across every model
+- `4` — providers covered on every plan (ChatGPT, Claude, Perplexity, Gemini)
+- `0` — blind spots once a prompt is tracked
+
+**Final CTA headline**
+> Start watching the answers this week.
+
+**Final CTA subheadline**
+> Free tier includes 10 tracked prompts, daily runs, and drift alerts. Paid plans start at $79/month.
+
+**Primary CTA label:** Start free
+
+---
+
+### Feature 2 — Competitive Share (`/features/competitive-share`)
+
+**Sidebar name:** Competitive Share
+**Sidebar tagline:** See exactly which AI answers your competitors win.
+
+**Metadata**
+- Title: `Competitive Share — Track how rivals show up in AI answers`
+- Description: `Competitive Share shows you exactly which competitors get cited in AI answers to your category's buyer questions — and which queries are still up for grabs.`
+- OG image: `/og/features/competitive-share.png`
+
+**Hero eyebrow:** Competitive Share
+
+**Hero headline**
+> See which competitors AI is quoting instead of you.
+
+**Hero subheadline**
+> For every prompt you track, Competitive Share shows the full ranked list of companies each model cites — who's first, who's rising, who's disappearing. Updated daily, on every model, with one-click export.
+
+**Problem eyebrow:** The dark map
+
+**Problem headline**
+> You can't out-position a rival you can't see.
+
+**Problem body**
+> When a buyer asks an AI model about your category, it names three to five companies and ranks them. That ranking shapes shortlists before your SDRs ever pick up the phone. Today, no B2B SaaS team has a single dashboard that shows which competitors AI names, in what order, on which model, and how that ordering changes week to week. Competitive Share is that dashboard.
+
+**Problem stats**
+- `Daily` — competitor cadence on every tracked prompt
+- `4` — models scored, per competitor, per prompt
+- `Unlimited` — competitors on Scale tier, up to 10 on Growth, 3 on Starter
+
+**How it works eyebrow:** How it works
+
+**How it works headline**
+> Pick your rivals. Watch the board.
+
+**Step 1 — Add competitor domains**
+> Drop in up to 15 competitor domains. We fetch their public content, track their mentions across your prompts, and run comparative queries automatically.
+
+**Step 2 — Score every answer**
+> For every (prompt × model × day) tuple, we extract every company cited and assign a weighted share score based on position, frequency, and context.
+
+**Step 3 — Surface the gaps**
+> Weekly gap report: "Five queries your competitors won last week that you should have won." Plus every flip — the moment you leapfrog a rival, or they leapfrog you.
+
+**Benefits eyebrow:** What it gives you
+
+**Benefits headline**
+> Competitive intelligence built for the answer engine, not the search engine.
+
+**Benefit 1 — Public-signal monitoring**
+- Description: We track every public signal a rival ships — content changes, manifest edits, mention velocity.
+- CTO: Public-content snapshots only. Zero scraping of gated pages. Full version history.
+- CMO: Know the day a competitor repositions — before the answer hardens in the model.
+
+**Benefit 2 — Answer-share leaderboards**
+- Description: Per-query, per-model rankings. 0–100 share scores. Week-over-week deltas.
+- CTO: Structured data; export to BigQuery, Snowflake, or CSV for your BI stack.
+- CMO: A scoreboard your sales team can read — no SQL required.
+
+**Benefit 3 — Gap reports, every Monday**
+- Description: The three to five prompts you should have won this week but didn't, with the most likely reason.
+- CTO: Automated weekly report, scoped to your category. Configurable delivery.
+- CMO: A ready-made weekly narrative to bring to leadership: here's what shifted, here's what we're fixing.
+
+**ROI eyebrow:** The math
+
+**ROI headline**
+> Every query they own is a buyer they see before you do.
+
+**ROI body**
+> AI citation ordering compounds. The first vendor cited is the one the buyer opens first; the one opened first is the one that owns the demo slot. Competitive Share gives you the list of queries that hierarchy is setting, and a clear worklist for the ones you can flip.
+
+**ROI stats**
+- `Weekly` — gap reports
+- `Daily` — ranking refreshes
+- `1 click` — to deploy a counter-positioning edit
+
+**Final CTA headline**
+> Stop guessing which competitor AI says is the leader.
+
+**Final CTA subheadline**
+> See exactly where you stand, and where to strike next. Starts at $79/month.
+
+**Primary CTA label:** Start free
+
+---
+
+### Feature 3 — Citation Attribution (`/features/citation-attribution`)
+
+**Sidebar name:** Citation Attribution
+**Sidebar tagline:** Tie AI answers to real site visits and real pipeline.
+
+**Metadata**
+- Title: `Citation Attribution — Which AI answers actually drove traffic`
+- Description: `Citation Attribution uses a one-line tracker to tie every AI-referrer visit back to the prompt that likely drove it. The only AI analytics tool that sees the actual click.`
+- OG image: `/og/features/citation-attribution.png`
+
+**Hero eyebrow:** Citation Attribution
+
+**Hero headline**
+> Finally — proof that AI answers are driving pipeline.
+
+**Hero subheadline**
+> One line of JavaScript. When a visitor lands on your site from ChatGPT, Claude, or Perplexity, we log it and connect it back to the prompt Answer Monitor is tracking. You stop guessing which AI answers work. You start measuring.
+
+**Problem eyebrow:** The attribution gap
+
+**Problem headline**
+> Every other AI tool watches from the outside. We watch the actual click.
+
+**Problem body**
+> Profound, Ahrefs, Scrunch — every major AI-visibility tool polls models from a SaaS dashboard. None of them sit on your site. So none of them can tell you whether an AI answer actually sent a human to your pricing page. Referrer headers from AI providers are messy, inconsistent, and drop through the cracks of Google Analytics. Citation Attribution is the one tool built specifically to catch them.
+
+**Problem stats**
+- ```< 2KB``` — tracker footprint, gzipped
+- `Async` — never blocks your page load
+- `Silent` — fails gracefully if our edge is unreachable
+
+**How it works eyebrow:** How it works
+
+**How it works headline**
+> One script tag. Three days to a full attribution picture.
+
+**Step 1 — Drop in the tracker**
+> Add one ```<script>``` tag from your CDN snippet or via our Next.js / WordPress / Vercel integration. Works with any hosting platform.
+
+**Step 2 — We detect AI referrers**
+> When `document.referrer` matches a known AI provider — `chatgpt.com`, `claude.ai`, `perplexity.ai`, `gemini.google.com`, and more as they launch — the tracker fires a single POST to our edge worker.
+
+**Step 3 — We correlate with tracked prompts**
+> The dashboard ties each AI-referred visit back to the prompts you're tracking. "47 visits from ChatGPT landed on /pricing this week. 12 probably came from the 'Stripe alternatives' prompt. 3 signed up for a trial." That's the data you never had.
+
+**Benefits eyebrow:** What it gives you
+
+**Benefits headline**
+> The one piece of data nobody outside your domain can see.
+
+**Benefit 1 — Referrer-level AI analytics**
+- Description: Per-provider visit counts, landing paths, device, and country. Filterable, exportable.
+- CTO: Raw events land in `bot_logs.ai_referrer`. RLS-scoped reads. JSON or CSV export.
+- CMO: A real number you can put in the board deck: "AI-sourced traffic this quarter: X."
+
+**Benefit 2 — Pipeline correlation**
+- Description: Cross-reference AI visits with your CRM or analytics to see which prompts drove trials, demos, or revenue.
+- CTO: Webhook-forward every AI-referred visit to Segment, Rudderstack, or your data lake.
+- CMO: Close the loop the CFO has been asking about — tie AI citations to pipeline dollars.
+
+**Benefit 3 — Install once, forget forever**
+- Description: One tag. No SDKs, no dependencies, no quarterly upgrades.
+- CTO: Served from our CDN; we handle bot detection, referrer parsing, and de-duplication. You handle zero maintenance.
+- CMO: A measurement system that doesn't bit-rot the moment your engineering team reprioritizes.
+
+**ROI eyebrow:** The math
+
+**ROI headline**
+> "AI is working for us" is not a data point. A referrer is.
+
+**ROI body**
+> Every other AI-visibility tool ends with "…and then you'd have to prove it sent traffic somehow." Citation Attribution is the somehow. One tag, real numbers, your site, your data.
+
+**ROI stats**
+- `1 line` — of HTML to install
+- `4+` — AI providers auto-detected and expanding
+- `Same day` — first referrer events appear in the dashboard
+
+**Final CTA headline**
+> Start counting the visits you've been missing.
+
+**Final CTA subheadline**
+> The tracker is included on every paid plan. Install once, and never wonder again.
+
+**Primary CTA label:** Start free
+
+---
+
+### Feature 4 — Prompt Library (`/features/prompt-library`)
+
+**Sidebar name:** Prompt Library
+**Sidebar tagline:** 500+ curated buyer prompts. Pick, don't write.
+
+**Metadata**
+- Title: `Prompt Library — Start tracking with real buyer questions`
+- Description: `500+ curated B2B SaaS prompts organized by category and buyer stage. Start tracking in five minutes, without writing a single query.`
+- OG image: `/og/features/prompt-library.png`
+
+**Hero eyebrow:** Prompt Library
+
+**Hero headline**
+> Five hundred buyer questions. Twenty categories. Zero to track in five minutes.
+
+**Hero subheadline**
+> We've read a lot of buyer interviews so you don't have to. Pick your category, skim the library, and start tracking — no creative writing required.
+
+**Problem eyebrow:** The cold start
+
+**Problem headline**
+> "Okay, what prompts should we track?" is where most teams stall.
+
+**Problem body**
+> The hardest part of AI-visibility work isn't the dashboard. It's generating a prompt list that matches how real buyers actually type. Marketing writes prompts that sound like blog titles. Engineers write prompts that sound like API docs. Actual buyers type messy, mid-funnel, comparison-heavy questions that almost nobody on your team would have guessed. The library collapses that first-week problem into a five-minute decision.
+
+**Problem stats**
+- `500+` — curated prompts at launch, growing weekly
+- `20+` — B2B SaaS verticals mapped
+- `3` — buyer stages per prompt (awareness, consideration, decision)
+
+**How it works eyebrow:** How it works
+
+**How it works headline**
+> Pick your category. Tick the prompts. Ship.
+
+**Step 1 — Choose your vertical**
+> Dev tools, data, marketing, security, fintech, HR tech, and more. The library grows every week based on what customers ask for.
+
+**Step 2 — Tick what matters**
+> Every prompt is tagged with buyer stage and difficulty. Filter, tick, add to tracking.
+
+**Step 3 — Customize if you want**
+> Swap your brand in, adjust regional phrasing, fork any prompt. Your version is yours forever.
+
+**Benefits eyebrow:** What it gives you
+
+**Benefits headline**
+> A head start on the hardest part of AI visibility.
+
+**Benefit 1 — Curated, not scraped**
+- Description: Every prompt is reviewed by humans. No AI-generated filler.
+- CTO: Versioned library, diffable, exportable as JSON.
+- CMO: Confidence that the prompts reflect real buyer language — not a content-farm template.
+
+**Benefit 2 — Organized by stage**
+- Description: Awareness, consideration, and decision prompts tagged separately.
+- CTO: API access on Scale tier; pull the library into your own tooling.
+- CMO: Build a funnel narrative: which AI stage are we losing? Which are we winning?
+
+**Benefit 3 — Request any prompt**
+- Description: Can't find what you need? Reply to the newsletter — most requests ship within a week.
+- CTO: No rate limits on requests.
+- CMO: The library is co-created with customers. Your category gets better every month you stay.
+
+**ROI eyebrow:** The math
+
+**ROI headline**
+> Five minutes to a ten-prompt starter list.
+
+**ROI body**
+> Most teams spend the first two weeks of AI-visibility work arguing about what to track. The library is how you skip that argument.
+
+**ROI stats**
+- `5 min` — from signup to first tracked prompt
+- `500+` — prompts in the library today
+- `Free` — on every plan
+
+**Final CTA headline**
+> Stop staring at the blinking cursor.
+
+**Final CTA subheadline**
+> Start with prompts your category actually uses.
+
+**Primary CTA label:** Browse the library
+
+---
+
+### Feature 5 — Edge Delivery (`/features/edge-delivery`) — kept, de-emphasized
+
+**Sidebar name:** Edge Delivery
+**Sidebar tagline:** llms.txt served from 300+ POPs. Included on every plan.
+
+**Metadata**
+- Title: `Edge Delivery — Serve llms.txt and robots.txt from our CDN`
+- Description: `Included on every plan: managed llms.txt and AI-aware robots.txt, served from 300+ edge locations. One rewrite rule. Zero ongoing maintenance.`
+- OG image: `/og/features/edge-delivery.png`
+
+**Hero eyebrow:** Edge Delivery
+
+**Hero headline**
+> One rewrite rule. llms.txt and an AI-aware robots.txt, served from our edge.
+
+**Hero subheadline**
+> We maintain your `llms.txt` and layer a parasite-crawler blocklist into your `robots.txt` automatically — served from 300+ locations, updated centrally, and included free with every paid plan. It's plumbing. It should feel like plumbing.
+
+**Problem eyebrow:** The forever-maintenance tax
+
+**Problem headline**
+> Every new AI crawler is a text-file chore your team shouldn't be doing.
+
+**Problem body**
+> Every quarter a new scraper appears — Applebot-Extended, Meta-ExternalAgent, Bytespider-again. Your options are: pay someone to maintain a growing list of User-Agent rules, or ignore it and hope. Edge Delivery does the maintenance centrally so you don't. It's not the reason to buy ReadyForLLM; it's a reason to stop maintaining robots.txt yourself.
+
+**Problem stats**
+- `300+` — edge locations
+- `20+` — AI crawlers classified and kept current
+- `0` — config files you maintain after install
+
+**How it works eyebrow:** How it works
+
+**How it works headline**
+> One rewrite rule, done.
+
+**Step 1 — Add one rewrite rule**
+> A single line on Vercel, Cloudflare, Netlify, Apache, or Nginx. Takes under three minutes.
+
+**Step 2 — We serve llms.txt + robots.txt from our edge**
+> Your canonical `llms.txt` sits on our CDN. Your `robots.txt` is rewritten to include our parasite-bot blocklist before it hits AI crawlers.
+
+**Step 3 — We keep it current**
+> When a new scraper appears, our blocklist updates centrally. You don't touch anything, ever.
+
+**Benefits eyebrow:** What it gives you
+
+**Benefits headline**
+> Boring, correct, and permanently out of your way.
+
+**Benefit 1 — Managed blocklist**
+- Description: Classifier updated as new crawlers appear in the wild.
+- CTO: Single source, served from our edge. Override any rule per-site.
+- CMO: Stop having conversations about robots.txt. They don't move pipeline.
+
+**Benefit 2 — 300+ POP delivery**
+- Description: llms.txt and robots.txt served from every major PoP.
+- CTO: `s-maxage=3600` on manifest reads. Non-blocking log writes via `waitUntil`.
+- CMO: AI crawlers read the current version of your manifest no matter where they hit from.
+
+**Benefit 3 — Platform-agnostic install**
+- Description: Works on Vercel, Cloudflare, Netlify, Apache, Nginx, and static hosts.
+- CTO: Copy-paste rewrite snippet per platform. No SDK. No build changes.
+- CMO: Nobody on your team learns a new tool.
+
+**ROI eyebrow:** The math
+
+**ROI headline**
+> A free utility on top of the product you're actually paying for.
+
+**ROI body**
+> Edge Delivery is included on every paid plan. It's not what we compete on — but it's what our customers stop thinking about.
+
+**ROI stats**
+- `$0` — incremental cost on every paid plan
+- `3 min` — setup
+- `Never` — the answer to "when do I maintain this?"
+
+**Final CTA headline**
+> Plumbing, handled.
+
+**Final CTA subheadline**
+> Part of every paid plan. You don't pick it — it comes with you.
+
+**Primary CTA label:** See pricing
+
+---
+
+## Part 4 — Pricing page (`app/pricing/page.tsx`)
+
+### Hero
+
+**Eyebrow:** Pricing
+
+**Headline**
+> Priced for the team actually doing the work.
+
+**Subheadline**
+> Every plan includes daily prompt tracking across 4 models, citation attribution, and the free tools. Pick the tier that matches how many prompts and competitors you're tracking — move up only when you outgrow it.
+
+### Billing toggle copy
+
+Monthly label: **Monthly**
+Yearly label: **Yearly · save ~15%**
+
+### Tiers
+
+**Free**
+- Tagline: *Start tracking AI visibility today.*
+- Price: $0
+- Features:
+  - 10 tracked prompts
+  - 1 competitor
+  - Weekly Sentinel runs
+  - Citation tracker included
+  - 7-day answer history
+  - Every free tool
+  - Community support
+- CTA: *Start free*
+
+**Starter — $79/mo ($67/mo annual)**
+- Tagline: *For indie SaaS and early-stage teams tracking AI visibility for the first time.*
+- Features:
+  - 50 tracked prompts
+  - 3 competitors
+  - Daily Sentinel runs
+  - Citation tracker + webhooks
+  - 30-day answer history
+  - Slack drift alerts
+  - Email support
+- CTA: *Start 14-day trial*
+
+**Growth — $249/mo ($211/mo annual)** *(highlighted)*
+- Tagline: *For B2B SaaS teams who want the data in front of leadership every week.*
+- Features:
+  - 250 tracked prompts
+  - 10 competitors
+  - Hourly Sentinel on priority prompts
+  - 12-month answer history
+  - Team seats (5 included)
+  - Slack + webhook + CSV export
+  - Weekly gap reports, automated
+  - Priority support (24h response)
+- CTA: *Start 14-day trial*
+
+**Scale — $799/mo ($679/mo annual)**
+- Tagline: *For teams running multiple brands, categories, or international markets.*
+- Features:
+  - 1,000 tracked prompts
+  - 25 competitors
+  - Multi-site support (up to 5 brands)
+  - Unlimited history
+  - API access
+  - Custom model allocations
+  - Custom reports
+  - Priority support (4h response)
+- CTA: *Talk to us*
+
+**Enterprise** *(hide this card until 20 Growth customers exist)*
+- Tagline: *Custom deployments for larger teams and regulated industries.*
+- Features:
+  - Unlimited prompts, competitors, sites
+  - SSO, SCIM, audit log export
+  - DPA, MSA, custom SLAs
+  - Dedicated solutions architect
+  - Managed onboarding
+- CTA: *Talk to sales*
+
+### Below-the-grid line
+
+*All prices in USD. Annual billing is about two months free. No setup fees. Cancel any time from the billing dashboard.*
+
+### Pricing page FAQ
+
+**Q: What counts as a "tracked prompt"?**
+A: One buyer question you want monitored — "Stripe alternatives for B2B SaaS," for example. We run it across ChatGPT, Claude, Perplexity, and Gemini at your plan's frequency. You can swap prompts in and out any time; we charge on the active count, not lifetime.
+
+**Q: Do you use my content to train models?**
+A: No. We read public pages via Firecrawl (manifest generation) and we send your prompts to each LLM provider via their API, which are the providers' standard no-training-on-API-calls endpoints. Your tracked prompts and the answers returned are stored only in your workspace.
+
+**Q: What happens if I exceed my prompt count?**
+A: Nothing breaks. We surface a soft banner in-app and reach out to talk. We don't block your tracking mid-month or auto-upgrade you. Overage is a conversation, not an invoice.
+
+**Q: Which models do you query?**
+A: ChatGPT (GPT-4o and GPT-4o mini), Claude (Haiku and Sonnet 4), Perplexity (Sonar), and Google Gemini (2.5 Flash and 2.5 Pro). New frontier models are added on the day their API opens.
+
+**Q: Can I track a brand that isn't my site?**
+A: Yes, but only one brand per workspace on Starter and Growth. Scale supports up to five brands for agencies, portfolio companies, and multi-brand teams.
+
+**Q: Do you have a free trial?**
+A: Yes — 14 days on Starter and Growth, no credit card required. You get the full feature set of the tier.
+
+**Q: Is there a free tier?**
+A: Yes. 10 tracked prompts, 1 competitor, weekly runs, the citation tracker, and every free tool. No credit card. No time limit.
+
+**Q: What about cancellation?**
+A: Monthly cancels at the end of the current period. Annual is prorated and refunded for the unused portion. No contract lock-in.
+
+**Q: Do you offer nonprofit or open-source discounts?**
+A: Yes — 50% off any self-serve plan for registered nonprofits and maintainers of OSS projects with 1k+ GitHub stars. Email hello@readyforllm.com.
+
+**Q: Can I self-host the tracker or run on-prem?**
+A: Not on self-serve plans. Self-hosted edge delivery is available on Enterprise — talk to us.
+
+---
+
+## Part 5 — Free tools (`lib/tools-content.ts`)
+
+### Full replacement `TOOLS` array
+
+```ts
+export const TOOLS: ToolEntry[] = [
+  {
+    slug: "ai-visibility-audit",
+    name: "AI Visibility Audit",
+    tagline: "One URL, one page, real answers from 4 models.",
+    description:
+      "We run a handful of category prompts against ChatGPT, Claude, Perplexity, and Gemini, then tell you exactly how your brand showed up. Shareable. Free.",
+    persona: "Marketer",
+    duration: "45 sec",
+    liteCTA: "Audit my site",
+    cta: {
+      label: "Track this daily with Answer Monitor →",
+      href: "/features/answer-monitor",
+    },
+  },
+  {
+    slug: "competitor-ai-gap",
+    name: "Competitor AI Gap",
+    tagline: "Paste two domains. See who AI picks.",
+    description:
+      "We ask the four major models which of two companies is better for a handful of buyer prompts. The answer surprises most people.",
+    persona: "Marketer",
+    duration: "45 sec",
+    liteCTA: "Compare two domains",
+    cta: {
+      label: "Track 10 competitors with Competitive Share →",
+      href: "/features/competitive-share",
+    },
+  },
+  {
+    slug: "citation-checker",
+    name: "Citation Checker",
+    tagline: "Are LLMs mentioning you for your best keywords?",
+    description:
+      "Pick up to three topics. We ask Gemini and tell you whether your domain shows up in the answer. Takes 20 seconds, costs nothing, zero signup.",
+    persona: "Marketer",
+    duration: "20 sec",
+    liteCTA: "Check citations",
+    cta: {
+      label: "Monitor these prompts across 4 models →",
+      href: "/features/answer-monitor",
+    },
+  },
+  {
+    slug: "llms-txt-checker",
+    name: "llms.txt Checker",
+    tagline: "Score your manifest in 10 seconds.",
+    description:
+      "We fetch your /llms.txt, validate it against the spec, and score the result. You get a numeric grade plus a punch list of every issue.",
+    persona: "Builder",
+    duration: "10 sec",
+    liteCTA: "Validate my manifest",
+    cta: {
+      label: "Need a manifest? Use the Generator →",
+      href: "/tools/manifest-generator",
+    },
+  },
+  {
+    slug: "manifest-generator",
+    name: "Manifest Generator",
+    tagline: "Get a starter llms.txt in 10 seconds.",
+    description:
+      "We scrape your homepage, extract the structured claims AI cares about, and write you a spec-shaped llms.txt. Copy, download, ship.",
+    persona: "Builder",
+    duration: "10 sec",
+    liteCTA: "Generate a manifest",
+    cta: {
+      label: "Keep it fresh with Edge Delivery →",
+      href: "/features/edge-delivery",
+    },
+  },
+  {
+    slug: "ai-bot-audit",
+    name: "AI Bot Audit",
+    tagline: "Which AI crawlers does your robots.txt actually block?",
+    description:
+      "We parse your robots.txt and report every major AI bot — allowed, blocked, or unmentioned. Unmentioned is the danger state.",
+    persona: "Ops",
+    duration: "10 sec",
+    liteCTA: "Audit my robots.txt",
+    cta: {
+      label: "Get a managed AI-aware robots.txt →",
+      href: "/features/edge-delivery",
+    },
+  },
+  {
+    slug: "parasite-blocklist",
+    name: "Parasite Blocklist",
+    tagline: "The live list of AI scrapers to block today.",
+    description:
+      "Our public, continuously-updated list of AI training crawlers that never send traffic back. CSV, JSON, and robots.txt-ready formats.",
+    persona: "Ops",
+    duration: "Live",
+    liteCTA: "View the list",
+    cta: {
+      label: "Get it auto-applied with Edge Delivery →",
+      href: "/features/edge-delivery",
+    },
+  },
+  {
+    slug: "bandwidth-calculator",
+    name: "Bandwidth Waste Calculator",
+    tagline: "How much are AI scrapers costing you each month?",
+    description:
+      "Drag a slider, pick your host, and watch the dollar number. Conservative assumptions — the real number is usually worse.",
+    persona: "Ops",
+    duration: "Live",
+    liteCTA: "Calculate waste",
+    cta: {
+      label: "Stop paying for parasite bots →",
+      href: "/features/edge-delivery",
+    },
+  },
+]
+```
+
+### `/tools` index page hero
+
+**Eyebrow:** Free tools
+
+**Headline**
+> Every tool we built for ourselves. Free, no signup.
+
+**Subheadline**
+> Run any of these in under a minute. No account, no credit card, no email required. The same infrastructure we use internally to run ReadyForLLM audits on every prospect — open to anyone.
+
+---
+
+## Part 6 — /audit/[domain] page (the outbound weapon)
+
+### Page-level metadata (dynamic)
+
+- Title: `AI Visibility Audit for {domain} — ReadyForLLM`
+- Description: `We ran {domain} through ChatGPT, Claude, Perplexity, and Gemini. Here's how you showed up.`
+- OG image: dynamically generated per domain (dark background, accent cyan, `{domain}` in monospace, score badge)
+
+### Page sections
+
+**Above the fold:**
+
+*Eyebrow:* AI Visibility Audit for
+*Domain (as H1):* `{domain}`
+
+*Score ribbon:*
+> Overall visibility: **{score}/100** · Audited {timestamp}
+
+*One-sentence verdict (dynamic, based on score):*
+- 0–29: "AI models barely know {brand} exists. Every answer in your category is going to a competitor."
+- 30–59: "You're showing up, but inconsistently. A handful of competitors are outranking you on buyer prompts you should own."
+- 60–79: "Solid visibility — with clear gaps. A few prompts are being won by companies you'd want to beat."
+- 80–100: "You're leading your category in AI answers. The job now is defending, not catching up."
+
+**Section: What ChatGPT says about you**
+*Header:* How ChatGPT describes {brand}
+*Body:* The first 400 characters of GPT-4o's response to "Tell me about {brand}." Blurred with a CTA:
+> Sign up free to see the full response — and run your own prompts.
+
+**Section: Where you rank in your category**
+*Header:* Your position in the top {X} for "{category-prompt}"
+*Body:* A mini table: ranking position on ChatGPT, Claude, Perplexity, Gemini.
+*Callout:* "You rank #{N} on ChatGPT for this prompt. Your top competitor, {competitor}, ranks #{M}."
+
+**Section: robots.txt and llms.txt posture**
+*Header:* Your technical AI-readiness
+*Body:* Three rows — llms.txt present? (yes/no, score), robots.txt AI bot posture (e.g., "blocks 3 of 8 major AI crawlers"), tracker installed? (always no for audit URLs, which is the opening for the CTA).
+*Callout:* "You're missing citation attribution — every AI-sourced visit to {domain} is currently invisible to your analytics."
+
+**Section: What to fix, in order**
+*Header:* Three things to fix this week
+*Body:* Dynamically generated from audit data:
+1. If no llms.txt → "Ship a manifest" with CTA to `/tools/manifest-generator`
+2. If missing citation tracker → "Install the tracker" with signup CTA
+3. Rank improvement → "Monitor {weakest-prompt} daily to catch drift" with signup CTA
+
+**Bottom CTA block:**
+*Headline:* Want the full audit, every week?
+*Subheadline:* Sign up free. Get 10 prompts tracked daily across 4 models, with drift alerts and competitor comparison — same data, updated every morning.
+*Primary CTA:* Start free tracking for {domain} →
+
+### Small-print footer on audit pages
+*Generated {timestamp}. All data from public pages and public model outputs. We don't store {domain}'s content, and we won't email you — signup is required if you want the data to update.*
+
+---
+
+## Part 7 — Signup flow microcopy (`rfllm-app` onboarding)
+
+### Step 1 — Create account
+
+*Headline:* Start tracking AI visibility.
+*Subheadline:* Free forever tier. No credit card. No demo call.
+
+*Email label:* Work email
+*Password label:* Password
+*Password helper:* Minimum 10 characters.
+
+*Primary CTA:* Create account
+*Footer link:* Already have an account? Log in
+
+### Step 2 — Add your site
+
+*Headline:* Which brand should we track?
+*Subheadline:* This is the company you want to measure in AI answers. You can add more later.
+
+*Domain label:* Your domain
+*Domain placeholder:* acme.com
+*Brand name label:* Brand name (optional)
+*Brand name helper:* We'll use your domain's title if you leave this blank.
+
+*Category label:* Category
+*Category placeholder:* Search or pick…
+*Category helper:* Helps us suggest prompts from the library.
+
+*Primary CTA:* Continue
+*Secondary link:* Skip for now
+
+### Step 3 — Pick starter prompts
+
+*Headline:* Pick a few prompts to start tracking.
+*Subheadline:* We've pulled the most common ones for {category}. Tick what matters; you can always add more.
+
+*Helper above library:* You've picked {N} of {limit} prompts for the {plan} tier.
+
+*Primary CTA:* Start tracking ({N} prompts)
+*Secondary link:* Add competitors next → (skip to step 4)
+
+### Step 4 — Add competitors
+
+*Headline:* Who do you want to beat in AI answers?
+*Subheadline:* We'll track them against the same prompts so you can see the gap week by week.
+
+*Competitor input placeholder:* competitor.com
+*Add button:* Add
+*Helper text:* Up to {limit} on {plan}. You can edit this list any time.
+
+*Primary CTA:* Continue
+*Secondary link:* Skip — add later
+
+### Step 5 — Install the tracker
+
+*Headline:* One script tag. Then you'll see real citation visits tomorrow.
+*Subheadline:* The tracker logs every visitor who arrives from an AI answer. Install now and you'll have a full picture by the end of the week.
+
+*Copy block header:* Paste this before `</body>`:
+*Code block:* ```<script async src="https://edge.readyforllm.com/v1/tracker.js?site={siteId}"></script>```
+
+*Verify button:* Verify install
+*Verify helper:* We fetch your homepage and look for the tag. Takes a few seconds.
+
+*Skip link:* I'll install this later
+
+### Step 6 — Done
+
+*Headline:* You're live. First results land tomorrow morning.
+*Body:* Sentinel runs overnight and fills the dashboard with your first real answers at ~03:00 UTC. Until then, explore the sample data, or head to the prompt library and add a few more.
+
+*Primary CTA:* Go to dashboard
+
+### Post-signup empty states
+
+- No prompts tracked yet: *No prompts tracked yet. Start with the library, or add a custom one.*
+- No competitors tracked yet: *No competitors tracked yet. Add one and we'll include it in tomorrow's run.*
+- No citation events yet: *No AI referrals logged yet. If you installed the tracker in the last 24 hours, this fills in as soon as a real visit comes through.*
+- No drift alerts yet: *No drift events this week — every tracked prompt returned a consistent answer. That's a good thing.*
+
+---
+
+## Part 8 — Dashboard microcopy (`rfllm-app`)
+
+### Top-level navigation labels
+
+- Dashboard
+- Prompts
+- Competitors
+- Citations
+- Settings
+
+### Page headers
+
+**Prompts page (`/site/[siteId]/prompts`)**
+- Header: *Tracked prompts*
+- Subheader: *{N} prompts · last run {timeAgo} · next run {relativeTime}*
+- Empty state: *No prompts tracked yet. Browse the library →*
+- Primary action button: *Add prompt*
+
+**Prompt detail (`/site/[siteId]/prompts/[promptId]`)**
+- Back link: *← All prompts*
+- Tab labels: *Latest answers*, *History*, *Drift events*, *Settings*
+
+**Competitors page (`/site/[siteId]/competitors`)**
+- Header: *Competitive share*
+- Subheader: *{N} competitors tracked · week of {weekStart}*
+- Empty state: *Add a competitor and we'll include them in tomorrow's prompt runs.*
+- Primary action button: *Add competitor*
+
+**Citations page (`/site/[siteId]/citations`)**
+- Header: *Citation attribution*
+- Subheader: *{N} AI-referred visits in the last {period}*
+- Empty state (tracker not installed): *No tracker detected on {domain} yet. Install it → (CTA)*
+- Empty state (tracker installed, no data): *Tracker is live. First AI-referred visit will appear here as soon as one lands.*
+
+### In-app alert templates
+
+**Drift alert (Slack/email/webhook)**
+> **Answer drift detected** — Prompt: `{promptText}` · Model: {model} · Severity: {severity}
+> Previous: "{oldSummary}"
+> Now: "{newSummary}"
+> [View full diff →]({url})
+
+**Competitor flip alert**
+> **Competitor ranking change** — On "{promptText}" ({model}), {competitor} passed you this week. New ranking: {competitor} #{M}, you #{N}.
+> [View leaderboard →]({url})
+
+**Tracker-not-verified warning banner (persistent until verified)**
+> *Citation tracking isn't live yet. You're missing AI-referrer data until the tracker is installed on {domain}.* [Install →]
+
+### Button labels (canonical set — never deviate)
+
+- *Save* (not "Save changes")
+- *Delete* (confirmation modal: *Delete this {thing}?* — body: *This can't be undone.* — destructive button: *Delete*)
+- *Add prompt*
+- *Add competitor*
+- *Run now* (on a prompt row — manual force-run)
+- *Mark as read* (on a drift event)
+- *Export CSV* (on any table)
+- *Upgrade plan* (on any gated feature)
+
+### Tier-gate messaging
+
+When a user hits a tier limit:
+> **Starter includes 50 tracked prompts.** You're at 50 — upgrading to Growth increases this to 250 and unlocks hourly Sentinel on priority prompts. *[See Growth plan →]*
+
+When a user tries to use a Growth-only feature on Starter:
+> **This view is on Growth and up.** Competitive Share gap reports run weekly on Growth. *[Upgrade to Growth →]*
+
+---
+
+## Part 9 — Transactional emails (`rfllm-brain` via Resend)
+
+Every email follows the same shell:
+- **Subject lines are ≤ 60 chars.** No emoji, no exclamation, no all-caps.
+- **Plaintext first, HTML second.** Plain should be fully readable alone.
+- **Sign-off:** `— The ReadyForLLM team`
+- **Footer:** physical mailing address + single unsubscribe link + sender name (Elvar / founder).
+
+### Welcome email (fires on signup completion)
+
+*Subject:* Welcome to ReadyForLLM — first data tomorrow morning
+
+*Body:*
+Hi {firstName},
+
+You're in. Here's what happens next:
+
+1. Overnight, we'll run your first prompts against ChatGPT, Claude, Perplexity, and Gemini. Your dashboard fills up around 03:00 UTC.
+2. If you installed the tracker, you'll start seeing AI-referred visits as soon as one lands.
+3. Friday, you'll get a short summary email: what changed, which competitors moved, which prompts you should add.
+
+A few links worth bookmarking:
+- Your dashboard: https://app.readyforllm.com
+- The prompt library: https://app.readyforllm.com/prompts/library
+- Docs: https://readyforllm.com/docs
+
+If anything is unclear, reply directly — this address goes to me.
+
+— Elvar
+Founder, ReadyForLLM
+Reykjavík
+
+### First-run-complete email (fires after first Sentinel batch finishes)
+
+*Subject:* Your first ReadyForLLM report is live
+
+*Body:*
+Hi {firstName},
+
+Your first Sentinel run just finished. Short summary:
+
+- **{nPrompts} prompts** tracked across ChatGPT, Claude, Perplexity, and Gemini
+- **Your brand appeared in {mentionCount}** of {totalAnswers} answers
+- **Top competitor by share: {topCompetitor}** (appeared in {topCount} answers)
+
+See the full dashboard: {dashboardUrl}
+
+A few things worth checking this morning:
+- The prompts where you don't appear but expected to — those are your worklist
+- The models where you show up consistently vs. inconsistently
+- The competitor you didn't realize was ranking above you
+
+Reply if anything looks off — I read every one.
+
+— Elvar
+ReadyForLLM
+
+### Weekly digest (every Friday, 08:00 customer's timezone)
+
+*Subject:* This week in AI answers for {brandName}
+
+*Body:*
+Hi {firstName},
+
+Week of {weekRange}. Quick numbers:
+
+- Prompts tracked: {nPrompts}
+- Your share change vs. last week: {delta}
+- Drift events: {driftCount}
+- AI-referred visits: {referralCount}
+
+**What moved this week**
+`{top 3–5 bullets auto-generated from drift events and share deltas}`
+
+**Three prompts your competitors won**
+`{list of 3 prompts from the gap report}`
+
+Full report: {dashboardUrl}
+
+— ReadyForLLM
+
+### Drift alert (single event, real-time, if user enables email delivery)
+
+*Subject:* Answer drift: {promptShortForm} — {model}
+
+*Body:*
+Heads up —
+
+The answer for "{promptText}" changed on {model} today. Severity: {severity}.
+
+**Previous:** {oldSummary}
+**Now:** {newSummary}
+
+[See full diff →]({url})
+
+This is an immediate alert because you enabled real-time notifications on this prompt. You can change alert settings any time in the prompt settings panel.
+
+— ReadyForLLM
+
+### Tracker-not-verified reminder (day 3, if still not installed)
+
+*Subject:* Quick reminder: citation tracker still not installed on {domain}
+
+*Body:*
+Hi {firstName},
+
+Noticed the tracker isn't live yet on {domain}. Without it, we can't tie the AI answers we track back to actual visits — so the attribution half of the product stays empty.
+
+Install takes a few minutes:
+1. Paste this before `</body>`:
+```<script async src="https://edge.readyforllm.com/v1/tracker.js?site={siteId}"></script>```
+2. Click Verify install in your dashboard: {verifyUrl}
+
+Or if you're on Next.js / Vercel / WordPress, use the official integration — docs here: {docsUrl}
+
+If there's a blocker, reply and I'll help.
+
+— Elvar
+
+### Payment failed (fires on Polar `order.failed`)
+
+*Subject:* Your ReadyForLLM payment didn't go through
+
+*Body:*
+Hi {firstName},
+
+Your payment for ReadyForLLM {plan} failed to process today. The card on file was declined — usually an expiry or a bank hold.
+
+Update your payment method here: {billingUrl}
+
+We'll retry in 3 days. Your tracking keeps running in the meantime — we don't stop data collection the second a card fails. If it still hasn't gone through after the retry, we'll pause the workspace until it's resolved.
+
+Questions — reply directly.
+
+— ReadyForLLM
+
+### Subscription canceled (fires on Polar `subscription.canceled`)
+
+*Subject:* Your ReadyForLLM subscription is canceled
+
+*Body:*
+Hi {firstName},
+
+Confirming your {plan} subscription is canceled. Your workspace stays active until {periodEnd}; after that, your prompts stop tracking and your dashboard goes read-only. Your data stays put — if you come back later, everything is exactly where you left it.
+
+Two quick asks:
+- If there's something we could have done better, reply and tell me. I read every one.
+- If this is just a pause, you can restart any time from {billingUrl} — no new signup needed.
+
+Thanks for giving us a look.
+
+— Elvar
+
+---
+
+## Part 10 — Cold outbound templates (the honest version)
+
+These are the cold-email and DM templates you send on top of the `/audit/[domain]` weapon. Every one is built on provable data — you've actually run the audit before sending.
+
+### Email sequence A — "I ran an audit" cold opener (primary)
+
+**Email 1 — Day 0**
+
+*Subject:* AI audit of {company.com}
+
+Hi {firstName},
+
+I ran {company.com} through ChatGPT, Claude, Perplexity, and Gemini this morning. Three things stood out:
+```bash
+1. {finding one — e.g., "You don't appear in ChatGPT's answer to 'best {category} for {segment}' — {competitor} ranks #1 across all four models."}
+2. {finding two — e.g., "Your site has no llms.txt, and your robots.txt doesn't mention 8 of the major AI crawlers."}
+3. {finding three — e.g., "No citation tracker installed, so any AI-sourced visits aren't showing up in your analytics today."}
+```
+Full audit here (shareable, no signup): {auditUrl}
+
+I'm building ReadyForLLM — we track every AI answer your buyers might be seeing, and we tie citation traffic back to real visits. Free tier covers 10 prompts daily, if useful.
+
+Worth a quick look?
+
+— Elvar
+From Reykjavík
+
+**Email 2 — Day 3 (if no reply)**
+
+*Subject:* re: AI audit of {company.com}
+
+Hi {firstName},
+
+Quick follow-up. Here's the core finding from the audit I ran Monday: `{one-sentence specific thing}`. That's probably costing pipeline you don't see yet because there's no measurement layer on AI referrers today.
+
+The {auditUrl} link above still works. Happy to just answer questions if you prefer — no demo required.
+
+— Elvar
+
+**Email 3 — Day 10 (break-up)**
+
+*Subject:* Closing the loop
+
+Hi {firstName},
+
+Won't keep emailing. The audit from Monday is still live at {auditUrl} if it's useful later.
+
+If AI visibility isn't a priority this quarter, totally fair — it's a new category and most teams aren't measuring it yet. Ping me whenever.
+
+— Elvar
+
+### LinkedIn DM (short, warm, post-audit)
+
+> Hi {firstName} — ran an AI visibility audit on {company.com} this morning. You don't appear in ChatGPT for your main category query; {competitor} does. Report here: {auditUrl}. No signup. I'm building a tool that tracks this daily if that's useful, but the audit is free regardless. — Elvar
+
+### Twitter/X reply (when prospect posts about AI search or SEO)
+
+> fwiw I ran an AI visibility audit on {company.com} — here's the current state: {auditUrl}. Free, no signup. Happy to walk through the methodology if it's useful.
+
+### Founder Q&A template (for HN, IndieHackers, subreddits)
+
+> Built ReadyForLLM after realizing no one could tell me whether ChatGPT was actually driving traffic to my site. Now we track how four major AI models describe B2B SaaS brands — daily — and tie citations back to real visits through a one-line tracker. Free tier exists. If anyone wants a free audit of their site, drop a domain in reply and I'll run it before lunch.
+
+---
+
+## Part 11 — Social profiles & bios
+
+### X / Twitter
+
+- **Display name:** Elvar — ReadyForLLM (or your preferred handle)
+- **Handle:** keep existing
+- **Avatar:** real photo
+- **Banner:** dark background, one line of cyan text: "AI visibility analytics for B2B SaaS · readyforllm.com"
+
+**Bio option A (recommended):**
+> Tracking how AI describes B2B SaaS brands · building ReadyForLLM · ex-nothing, solo founder · Reykjavík 🇮🇸
+
+**Bio option B:**
+> Most B2B teams don't know what ChatGPT says about them. I'm fixing that · founder, ReadyForLLM · Iceland
+
+### LinkedIn
+
+**Headline:**
+> Founder, ReadyForLLM · AI visibility analytics for B2B SaaS · Reykjavík
+
+**About (3 paragraphs, first person):**
+
+> I started ReadyForLLM after looking at my own Google Analytics and realizing I had no idea how much of my traffic had started with an AI answer. Nobody's analytics stack could tell me — not because the data didn't exist, but because nobody was watching for it.
+>
+> ReadyForLLM is an AI visibility analytics platform for B2B SaaS. We track how ChatGPT, Claude, Perplexity, and Gemini describe your brand across the prompts your buyers actually run, we show you exactly which competitors they cite instead of you, and we tie each citation back to real site visits through a lightweight tracker. For teams who believe the AI layer is already reshaping their funnel — and want a number instead of a guess.
+>
+> Based in Reykjavík. Always happy to talk to technical founders about AI analytics, the llms.txt standard, or what it's like running a SaaS business from a country of 370,000 people.
+
+### Threads
+
+**Bio:**
+> Figuring out how ChatGPT talks about B2B SaaS · building ReadyForLLM from Reykjavík · dark mode and good coffee
+
+### Reddit (existing 1-year-old account)
+
+Small bio: *SaaS founder, interested in web infra and how AI is reshaping discovery. Building ReadyForLLM.* No username change.
+
+---
+
+## Part 12 — The public pivot announcement
+
+This goes on the blog at `/blog/the-pivot`, then gets torn into a Twitter thread, a LinkedIn post, and a Hacker News Show post. Building in public is part of the distribution strategy, and you get exactly one chance to frame the pivot as a strength instead of a retreat.
+
+### Blog post
+
+*Title:* What we're changing about ReadyForLLM (and why)
+
+*Subtitle:* The honest version of why we're pivoting from "AI crawler infrastructure" to "AI visibility analytics."
+
+*Body:*
+A few weeks ago I sat down and did something I should have done three months earlier: I steelmanned the case for not building ReadyForLLM as I'd been describing it.
+
+The v1 pitch was "AI crawler infrastructure for SaaS." Managed llms.txt at the edge. A centrally maintained parasite blocklist. AI bot analytics via a tracker script. Four tidy pillars.
+
+The steelman was short and ugly:
+
+- **Cloudflare already ships most of it for free.** AI Crawl Control, Content Signals Policy, and one-click parasite blocking all landed in mid-2025. I couldn't explain to a prospect why they shouldn't just toggle a Cloudflare setting.
+- **The llms.txt standard isn't confirmed read by any major LLM.** Google has publicly said their AI systems don't use it today. The IETF AIPREF Working Group is shipping a competing standard. Betting a company on llms.txt is 2025's version of betting on AMP.
+- **"Broadcasting" — the feature that pings LLMs on content changes — was marketing fiction.** No major AI provider has a public content-push endpoint. It couldn't be built as described.
+
+So three of the four pillars were either disintermediated or dishonest. That's a sign.
+
+But the fourth pillar turned out to be the real product: **citation attribution**. The one-line tracker on customer sites that logs every AI-referred visit. Profound and Ahrefs can poll AI models from their dashboards — neither of them lives on the customer's domain, so neither can actually see the click. That's a moat. That's the product.
+
+So here's what ReadyForLLM is now:
+
+**AI visibility analytics for B2B SaaS.** Daily tracking of how ChatGPT, Claude, Perplexity, and Gemini describe your brand. Side-by-side competitive share scoring on the same prompts. One-line citation tracker that ties AI answers to real site visits. Free tier forever. $79–$799/month for real teams.
+
+**What dies:** the "AI Shield" paid feature (Cloudflare's job). Broadcasting (not technically possible). Auto-Manifest as a paid headline (becomes a free tool). The "four-pillar infrastructure suite" framing.
+
+**What survives and gets doubled down on:** Sentinel (renamed Answer Monitor). Competitor Shadow (renamed Competitive Share). The tracker. The free tools (which are now the whole top of funnel).
+
+**What this means for early users:** if you signed up for v1 during the beta, your workspace keeps working; the dashboard looks different next week, but your data is untouched. If you signed up for an "AI Shield" plan, we're comping you the equivalent Growth seat for six months — more on that by email tomorrow.
+
+If there's a lesson here for other bootstrapped founders, it's that it's genuinely worth writing the hit-piece version of your own product every six months. Most of what I cut in this pivot I'd been quietly uncomfortable about for weeks. The exercise just gave me permission to act on it.
+
+Next up: shipping the new dashboard. Notes from that next week.
+
+— Elvar
+Reykjavík
+
+### X thread version (10 tweets)
+
+1. We're pivoting ReadyForLLM. Here's the honest version of why.
+2. v1 pitch: "AI crawler infrastructure." Four pillars — managed llms.txt, parasite blocklist, bot analytics, broadcasting.
+3. Steelmanned it three weeks ago. The case for not building what I was building was short and ugly.
+4. 1/ Cloudflare ships most of the infrastructure pillar for free. AI Crawl Control. Content Signals. Parasite blocking. I couldn't explain why a prospect shouldn't just toggle a Cloudflare setting.
+5. 2/ The llms.txt standard isn't confirmed-read by any major LLM. The IETF AIPREF WG is shipping a competing standard. Betting a company on llms.txt is AMP 2.0.
+6. 3/ "Broadcasting" — pinging LLMs on content changes — was marketing fiction. No major AI provider has a public content-push endpoint. It couldn't be built.
+7. But the fourth pillar — citation attribution via an on-domain tracker — was a moat. Profound and Ahrefs can't see the click. We can.
+8. So here's ReadyForLLM now: AI visibility analytics for B2B SaaS. Daily answer tracking across ChatGPT, Claude, Perplexity, Gemini. Competitive share. One-line tracker tying AI answers to real visits. Free tier. $79–$799/mo paid tiers.
+9. What dies: AI Shield as paid (Cloudflare's job). Broadcasting (impossible). Auto-Manifest as headline (becomes a free tool).
+10. Full post: {blogUrl}. If you were on the v1 beta, your workspace and data are untouched. More on the roadmap next week.
+
+### LinkedIn version
+
+Same as blog post but without the HN framing. Add a one-line lede:
+
+> Quick note for the network: we're repositioning ReadyForLLM. If you were watching v1, here's what changed and why — including the part where I had to admit a feature I was marketing couldn't actually be built.
+
+### Hacker News "Show HN" version
+
+*Title:* Show HN: ReadyForLLM – AI visibility analytics for B2B SaaS (pivot from v1)
+
+*Body:*
+Hi HN,
+
+Pivoted this week from "AI crawler infrastructure" to "AI visibility analytics." Writeup of why: {blogUrl}
+
+The short version: Cloudflare ships the infra pillar free, llms.txt isn't confirmed-read by major LLMs, and one of my marketed features couldn't technically be built. Three pillars fell out. One survived — a one-line tracker that ties AI-referrer visits to tracked prompts. That's the product now.
+
+What's live today: daily multi-model answer tracking (ChatGPT, Claude, Perplexity, Gemini), competitive share scoring, referrer-level citation tracking via a 2KB script tag. Free tier. Paid $79–$799/mo.
+
+Happy to answer questions. Especially curious if anyone has shipped citation attribution differently, or has a take on the IETF AIPREF trajectory.
+
+---
+
+## Part 13 — The four rules for everything
+
+Any copy that ships under ReadyForLLM must pass these four tests before it goes live:
+
+1. **Could a hostile prospect disprove this with curl?** If yes, rewrite it. The Broadcasting failure was a curl-test failure waiting to happen. Never again.
+2. **Does it describe what the product does, or what the buyer gets?** If the first word is "we" or "our," rewrite. The reader wants to read about themselves.
+3. **Would a senior engineer find a word that's pretending?** "Leverage," "supercharge," "unlock," "revolutionary," "cutting-edge," "industry-leading," "game-changing" — all auto-fail. Delete and rewrite.
+4. **Is there a specific number, name, or verifiable fact somewhere in the paragraph?** If not, the copy is slurry. Add one specific thing — a bot name, a model name, a number, a timeframe. Specificity is credibility.
+
+If the copy passes all four, it ships. If it fails one, it gets rewritten before it goes anywhere near a page.
+
+---
+
+## Part 14 — Summary for the impatient
+
+- Homepage headline: *See how AI describes your brand. Before your buyers do.*
+- Three pillars: **Answer Monitor**, **Competitive Share**, **Citation Attribution**.
+- Prompt Library and Edge Delivery are supporting features, not pillars.
+- Pricing: Free, $79, $249, $799, hidden Enterprise.
+- Free tools double in number, led by the shareable `/audit/[domain]` URL.
+- Every email, dashboard string, and outbound template is derived from the voice rules in Part 1.
+- Broadcasting is gone. AI Shield as a paid feature is gone. Auto-Manifest becomes a free tool. llms.txt is a utility, not the product.
+- Every claim in this document is verifiable with a curl, an API call, or a public model query. If it isn't, it doesn't ship.
+
+The plumbing is done. The story is different. Ship the story.

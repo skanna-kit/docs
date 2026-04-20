@@ -1,0 +1,732 @@
+---
+title: 'Branding'
+description: 'The new brand entity strategy: a global enrichment layer for consistent logos, names, and colors across the dashboard.'
+icon: 'pencil'
+---
+
+
+# ReadyForLLM — Brand Entity Strategy
+
+**Date:** April 16, 2026
+**Status:** Strategy doc. Updates Architecture-v2.1 additively; no existing columns renamed.
+**Supersedes:** Nothing — this is an enrichment layer on top of v2.1.
+
+---
+
+## 0. The insight you identified
+
+You're right: conceptually, we're not "tracking sites." We're **tracking brands**.
+
+- A user's workspace represents **their brand** — Stripe, Notion, Linear, etc.
+- Competitors are **other brands**.
+- Competitive Share is a **brand-vs-brand** comparison.
+- Reports, screenshots, charts — all want logos, colors, names.
+
+The current schema treats `sites` as the center of the universe (because it holds billing), and `competitors` as dumb appendages (a domain string plus a `has_manifest` flag). That mismatch shows up everywhere:
+
+- Competitor dashboard lists competitors as raw domains (ugly)
+- Share-of-voice chart has "You" in brand color and competitors as grey blobs
+- Reports you'd want to share externally look bush-league next to Profound's polish
+- Every time a customer adds "stripe.com" as a competitor, we re-fetch stripe.com from scratch, even though 50 other customers also track Stripe
+
+---
+
+## 1. Why we DON'T rename `sites` → `brands`
+
+Tempting, but wrong for three reasons:
+
+1. **Zero customer-facing value, weeks of engineering cost.** A full rename touches ~200+ code locations (FK references, RLS policies, TypeScript types, UI components, every service method signature).
+2. **Production risk during rollout.** Even a well-executed rename has a migration window where live traffic can hit mismatched states.
+3. **`sites` actually means something specific already** — it's "a billing relationship between a user and a domain." That's not the same thing as "a brand in the world." Mashing the two concepts into one table is what got us here.
+
+The right move is to **add a new entity**, not rename an old one.
+
+---
+
+## 2. The cleaner model: brands as global enrichment lookup
+
+Here's the model:
+
+```
+brands                       ← Global, deduplicated, shared across all users
+  ├── id
+  ├── domain (unique)
+  ├── name
+  ├── tagline
+  ├── about
+  ├── logo_url
+  ├── favicon_url
+  ├── primary_color
+  ├── secondary_color
+  ├── category
+  ├── enrichment_tier      ('basic' | 'full' | 'none')
+  ├── enriched_at
+  └── created_at
+
+sites                        ← Unchanged. Billing + credits + ownership.
+  ├── id, user_id, domain, tier, credits_remaining, ... (all existing columns)
+  └── brand_id → brands.id  ← NEW column, one-to-one link to enrichment
+
+competitors                  ← Unchanged. Adds one column.
+  ├── id, site_id, domain, has_manifest, last_checked_at (existing)
+  └── brand_id → brands.id  ← NEW column, many-to-one link
+```
+
+### What this means operationally
+
+**On user signup (a new `site` row is created):**
+1. Upsert a `brand` row for the user's domain (lookup by domain; create if missing).
+2. Enrich it at the **basic tier** automatically (~$0.005, one-time per domain globally).
+3. Set `sites.brand_id` to the brand row.
+
+**When a user adds a competitor:**
+1. Upsert a `brand` row for the competitor's domain.
+2. If not already enriched (no other user has added this competitor before), run basic enrichment.
+3. Set `competitors.brand_id` to the brand row.
+
+**When a user buys Prompt Studio:**
+1. Upgrade their own brand's enrichment to **full tier** (~$0.02).
+2. Upgrade all their competitor brands' enrichment to full tier.
+3. Dashboard now shows rich cards for every brand (logo, colors, tagline).
+
+### Why this deduplication matters
+
+If 100 customers each add Stripe as a competitor, you currently re-fetch stripe.com 100 times (or more, as the system runs competitor checks). With global `brands`, you fetch once, cache forever (with periodic refresh), and every customer sees the same high-quality Stripe card.
+
+**Estimated savings:** at 200 customers averaging 8 tracked competitors each, with ~40% overlap across customers (the same well-known competitors keep appearing), we go from 1,600 fetches to maybe 960 unique brands. ~$13 saved per month at $0.02/brand. Not huge in raw dollars, but the **consistency** is huge — if two customers are comparing themselves to Notion, they'd better see the same "Notion" card with the same logo and colors.
+
+---
+
+## 3. Migration plan — 100% additive, zero risk
+
+Five migrations. Each adds to the schema; nothing removes or renames. All safe to run on live production.
+
+### 3a. Create `brands` table
+
+```sql
+-- 20260425000000_brands_table.sql
+
+CREATE TABLE IF NOT EXISTS public.brands (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  domain text NOT NULL,
+  name text NULL,
+  tagline text NULL,
+  about text NULL,
+  logo_url text NULL,
+  favicon_url text NULL,
+  primary_color text NULL,           -- hex, e.g. '#635BFF'
+  secondary_color text NULL,         -- hex
+  category text NULL,                -- AI-extracted category
+  enrichment_tier text NOT NULL DEFAULT 'none' CHECK (enrichment_tier IN ('none', 'basic', 'full')),
+  enriched_at timestamptz NULL,
+  enrichment_data jsonb NULL,        -- raw Firecrawl + extracted metadata for debugging
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- One brand row per domain globally
+CREATE UNIQUE INDEX brands_domain_unique ON public.brands (lower(domain));
+
+-- Trigger for updated_at
+CREATE TRIGGER brands_updated_at
+  BEFORE UPDATE ON public.brands
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- RLS: readable by any authenticated user (brand data is semi-public)
+-- but only writable by service role
+ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "brands_select_all"
+  ON public.brands FOR SELECT
+  TO authenticated
+  USING (true);
+
+REVOKE INSERT, UPDATE, DELETE ON public.brands FROM authenticated, anon;
+GRANT SELECT ON public.brands TO authenticated;
+```
+
+Brands are semi-public data (they describe companies on the public internet). Making them readable by any authenticated user simplifies UI — when a user sees "Stripe" in their competitive share, they can look up the brand directly. No privacy concern since every field is derivable from public scraping.
+
+### 3b. Add brand_id to sites
+
+```sql
+-- 20260425000100_sites_brand_link.sql
+
+ALTER TABLE public.sites
+  ADD COLUMN IF NOT EXISTS brand_id uuid NULL REFERENCES public.brands(id) ON DELETE SET NULL;
+
+CREATE INDEX sites_brand_id_idx ON public.sites (brand_id) WHERE brand_id IS NOT NULL;
+```
+
+Nullable on purpose — existing `sites` rows have no brand yet (we backfill in 3d).
+
+### 3c. Add brand_id to competitors
+
+```sql
+-- 20260425000200_competitors_brand_link.sql
+
+ALTER TABLE public.competitors
+  ADD COLUMN IF NOT EXISTS brand_id uuid NULL REFERENCES public.brands(id) ON DELETE SET NULL;
+
+CREATE INDEX competitors_brand_id_idx ON public.competitors (brand_id) WHERE brand_id IS NOT NULL;
+```
+
+### 3d. Backfill brands for existing sites and competitors
+
+```sql
+-- 20260425000300_backfill_brands.sql
+
+-- Create brand rows for every existing site
+INSERT INTO public.brands (domain, created_at)
+SELECT DISTINCT lower(domain), now()
+FROM public.sites
+WHERE domain IS NOT NULL
+  AND deleted_at IS NULL
+ON CONFLICT (lower(domain)) DO NOTHING;
+
+-- Link sites to their brands
+UPDATE public.sites
+SET brand_id = b.id
+FROM public.brands b
+WHERE lower(sites.domain) = b.domain
+  AND sites.brand_id IS NULL
+  AND sites.deleted_at IS NULL;
+
+-- Create brand rows for every existing competitor
+INSERT INTO public.brands (domain, created_at)
+SELECT DISTINCT lower(domain), now()
+FROM public.competitors
+WHERE domain IS NOT NULL
+ON CONFLICT (lower(domain)) DO NOTHING;
+
+-- Link competitors to their brands
+UPDATE public.competitors
+SET brand_id = b.id
+FROM public.brands b
+WHERE lower(competitors.domain) = b.domain
+  AND competitors.brand_id IS NULL;
+```
+
+All brand rows start with `enrichment_tier = 'none'`. A cron job (step 3e) or on-demand enrichment fills them in.
+
+### 3e. Helper function for upsert-by-domain
+
+```sql
+-- 20260425000400_upsert_brand_function.sql
+
+CREATE OR REPLACE FUNCTION public.upsert_brand(p_domain text)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_brand_id uuid;
+  v_normalized text;
+BEGIN
+  v_normalized := lower(p_domain);
+
+  INSERT INTO public.brands (domain)
+  VALUES (v_normalized)
+  ON CONFLICT (lower(domain)) DO UPDATE
+    SET updated_at = now()  -- no-op update just to get RETURNING
+  RETURNING id INTO v_brand_id;
+
+  RETURN v_brand_id;
+END;
+$$;
+
+REVOKE EXECUTE ON FUNCTION public.upsert_brand FROM public, authenticated, anon;
+GRANT EXECUTE ON FUNCTION public.upsert_brand TO service_role;
+```
+
+---
+
+## 4. BrandService — the new enrichment orchestrator
+
+Create `rfllm-brain/src/services/BrandService.ts`:
+
+```typescript
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Env } from "../index";
+
+interface BrandEnrichmentResult {
+  name: string | null;
+  tagline: string | null;
+  about: string | null;
+  logo_url: string | null;
+  favicon_url: string | null;
+  primary_color: string | null;
+  secondary_color: string | null;
+  category: string | null;
+}
+
+export class BrandService {
+  private sb: SupabaseClient;
+  private env: Env;
+
+  constructor(env: Env) {
+    this.sb = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY);
+    this.env = env;
+  }
+
+  /**
+   * Upsert a brand row for a domain. Returns brand_id.
+   * Idempotent: safe to call multiple times.
+   */
+  async upsertBrand(domain: string): Promise<string> {
+    const { data, error } = await this.sb.rpc("upsert_brand", {
+      p_domain: domain,
+    });
+    if (error) throw new Error(`upsert_brand failed: ${error.message}`);
+    return data as string;
+  }
+
+  /**
+   * Basic enrichment: og tags, favicon, one-line description.
+   * Cost: ~$0.005 (one Firecrawl scrape, one Gemini Flash call).
+   * Runs automatically for new brands.
+   */
+  async enrichBasic(brandId: string): Promise<void> {
+    // Skip if already enriched at basic+ tier and < 90 days old
+    const { data: existing } = await this.sb
+      .from("brands")
+      .select("domain, enrichment_tier, enriched_at")
+      .eq("id", brandId)
+      .maybeSingle();
+
+    if (!existing) throw new Error(`Brand not found: ${brandId}`);
+    if (
+      existing.enrichment_tier !== "none" &&
+      existing.enriched_at &&
+      new Date(existing.enriched_at).getTime() > Date.now() - 90 * 86400_000
+    ) {
+      return; // already fresh
+    }
+
+    // Firecrawl scrape with metadata
+    const scraped = await this.firecrawlScrape(existing.domain);
+    if (!scraped) return; // failed silently — try again next time
+
+    // Parse og tags for quick wins
+    const metadata = scraped.metadata || {};
+    const name = metadata.ogSiteName || metadata.title || null;
+    const favicon_url = metadata.favicon || `https://${existing.domain}/favicon.ico`;
+    const logo_url = metadata.ogImage || null;
+    const about = metadata.ogDescription || metadata.description || null;
+
+    // Update the row with basic data
+    await this.sb
+      .from("brands")
+      .update({
+        name,
+        favicon_url,
+        logo_url,
+        about,
+        enrichment_tier: "basic",
+        enriched_at: new Date().toISOString(),
+        enrichment_data: { metadata, source: "og_tags" },
+      })
+      .eq("id", brandId);
+  }
+
+  /**
+   * Full enrichment: logo color extraction, homepage screenshot, category,
+   * positioning statement, tagline. Bundled with Prompt Studio purchase.
+   * Cost: ~$0.02.
+   */
+  async enrichFull(brandId: string): Promise<void> {
+    // Ensure basic has run first
+    await this.enrichBasic(brandId);
+
+    const { data: brand } = await this.sb
+      .from("brands")
+      .select("*")
+      .eq("id", brandId)
+      .maybeSingle();
+
+    if (!brand) throw new Error(`Brand not found: ${brandId}`);
+    if (brand.enrichment_tier === "full") {
+      const fresh = brand.enriched_at && new Date(brand.enriched_at).getTime() > Date.now() - 90 * 86400_000;
+      if (fresh) return;
+    }
+
+    // Color extraction from logo_url (if available)
+    let primary_color: string | null = null;
+    let secondary_color: string | null = null;
+    if (brand.logo_url) {
+      const colors = await this.extractColorsFromUrl(brand.logo_url);
+      primary_color = colors?.[0] ?? null;
+      secondary_color = colors?.[1] ?? null;
+    }
+
+    // Gemini Flash: extract tagline, positioning, category
+    const scraped = await this.firecrawlScrape(brand.domain);
+    const extracted = scraped ? await this.extractBrandDetails(scraped, brand.name ?? undefined) : null;
+
+    await this.sb
+      .from("brands")
+      .update({
+        primary_color,
+        secondary_color,
+        tagline: extracted?.tagline ?? brand.tagline,
+        category: extracted?.category ?? brand.category,
+        about: extracted?.about ?? brand.about,
+        enrichment_tier: "full",
+        enriched_at: new Date().toISOString(),
+      })
+      .eq("id", brandId);
+  }
+
+  /**
+   * Called from the user's onboarding flow + when a competitor is added.
+   */
+  async onBrandReferenced(domain: string, enrichmentTier: "basic" | "full" = "basic"): Promise<string> {
+    const brandId = await this.upsertBrand(domain);
+    if (enrichmentTier === "basic") {
+      // Fire-and-forget; don't block signup on enrichment
+      this.enrichBasic(brandId).catch((err) =>
+        console.error("enrichBasic failed", { brandId, domain, error: err.message })
+      );
+    } else {
+      await this.enrichFull(brandId);
+    }
+    return brandId;
+  }
+
+  // ==== Private helpers ====
+
+  private async firecrawlScrape(domain: string): Promise<any> {
+    const url = `https://${domain.replace(/^https?:\/\//, "")}`;
+    const res = await fetch("https://api.firecrawl.dev/v2/scrape", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.env.FIRECRAWL_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ url, formats: ["metadata"] }),
+    });
+    if (!res.ok) {
+      console.error("Firecrawl scrape failed", { domain, status: res.status });
+      return null;
+    }
+    const json = await res.json();
+    return json.data;
+  }
+
+  private async extractColorsFromUrl(logoUrl: string): Promise<string[] | null> {
+    // Note: Cloudflare Workers doesn't have native Canvas/Image libraries.
+    // Two options:
+    //   1. Use Cloudflare Image Resizing + meta extraction
+    //   2. POST the URL to a small color-extraction worker (e.g., using
+    //      node-vibrant in a separate lightweight Worker that accepts
+    //      PNG/JPEG URLs and returns hex palette)
+    //   3. Use an external API like colormind.io or image-color-extract APIs
+    //
+    // For MVP: fetch the image, use Cloudflare's built-in image
+    // preprocessor, and parse the OG:theme-color from metadata.
+    //
+    // Stub for now — return a fallback palette based on the domain.
+    // Claude Code should flesh this out or accept the TODO.
+    return null;
+  }
+
+  private async extractBrandDetails(
+    scraped: any,
+    knownName?: string
+  ): Promise<{ tagline: string; category: string; about: string } | null> {
+    // Gemini Flash: feed scraped content, extract structured brand data
+    const prompt = `Given the following scraped homepage metadata, extract:
+- tagline: a short (under 15 words) punchy one-liner describing what they do
+- category: the product category (e.g., "project management software", "API monitoring", "CI/CD")
+- about: a 1-2 sentence plain-language description
+
+Respond in JSON only.
+
+Known brand name: ${knownName ?? "unknown"}
+Metadata: ${JSON.stringify(scraped.metadata).slice(0, 2000)}`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { responseMimeType: "application/json" },
+          }),
+        }
+      );
+      if (!res.ok) return null;
+      const json = await res.json();
+      const text = json.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return null;
+      return JSON.parse(text);
+    } catch (err) {
+      console.error("extractBrandDetails failed", { err: (err as Error).message });
+      return null;
+    }
+  }
+}
+```
+
+---
+
+## 5. UI: BrandCard component
+
+A single React component that renders any brand beautifully. Works the same for your own brand and any competitor.
+
+```typescript
+// rfllm-app/components/brand-card.tsx
+
+interface Brand {
+  domain: string;
+  name: string | null;
+  tagline: string | null;
+  logo_url: string | null;
+  favicon_url: string | null;
+  primary_color: string | null;
+  category: string | null;
+  enrichment_tier: "none" | "basic" | "full";
+}
+
+export function BrandCard({
+  brand,
+  variant = "default",
+  showColor = false,
+}: {
+  brand: Brand;
+  variant?: "default" | "compact" | "header";
+  showColor?: boolean;
+}) {
+  const displayName = brand.name || brand.domain;
+  const accent = showColor && brand.primary_color ? brand.primary_color : "#666";
+
+  return (
+    <div
+      className="flex items-center gap-3 p-3 rounded-lg border border-neutral-800 bg-neutral-900/50"
+      style={showColor ? { borderLeftColor: accent, borderLeftWidth: 3 } : undefined}
+    >
+      {brand.logo_url || brand.favicon_url ? (
+        <img
+          src={brand.logo_url || brand.favicon_url!}
+          alt={displayName}
+          className="w-8 h-8 rounded bg-neutral-800"
+          onError={(e) => { (e.target as HTMLImageElement).src = ''; }}
+        />
+      ) : (
+        <div className="w-8 h-8 rounded bg-neutral-800 flex items-center justify-center text-xs font-bold">
+          {displayName.charAt(0).toUpperCase()}
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="font-medium truncate">{displayName}</div>
+        {variant !== "compact" && brand.tagline && (
+          <div className="text-xs text-neutral-400 truncate">{brand.tagline}</div>
+        )}
+      </div>
+      {brand.enrichment_tier === "full" && variant === "default" && brand.category && (
+        <span className="text-xs text-neutral-500 bg-neutral-800 px-2 py-1 rounded">
+          {brand.category}
+        </span>
+      )}
+    </div>
+  );
+}
+```
+
+Use it everywhere:
+- Competitor list
+- Share of voice chart (logos as legend)
+- Prompt run answer cards ("Claude cited [Stripe] and [Square]")
+- Monthly report headers
+- Dashboard workspace switcher
+
+**One component, unified brand rendering.**
+
+---
+
+## 6. Product positioning: the two-tier enrichment model
+
+### Basic enrichment — free, automatic
+
+Every brand that enters the system (user's own or competitor) gets basic enrichment automatically. Cost: ~$0.005 per brand, one-time. Cached forever (refresh every 90 days).
+
+**Contents:**
+- Brand name (from og:site_name or page title)
+- Favicon URL
+- Logo URL (from og:image)
+- One-line description (from og:description)
+- About text (from meta description or scraped about page)
+
+**Why free:** this is table stakes. A "competitor tracker" that shows competitors as raw domain strings without logos or names looks amateur. Every serious tool has this.
+
+**When it fires:**
+- User signs up → their own brand gets enriched
+- User adds a competitor → competitor brand gets enriched
+- Batch job nightly: any brand with `enrichment_tier = 'none'` gets enriched (catches gaps)
+
+### Full enrichment — part of Prompt Studio
+
+Full enrichment upgrades brand data beyond basic. Cost: ~$0.02 per brand. Bundled with Prompt Studio purchase ($29 one-time).
+
+**Contents (in addition to basic):**
+- Dominant colors extracted from logo (primary + secondary)
+- Tagline — a polished one-line positioning statement
+- Category classification (e.g., "API monitoring", "customer data platform")
+- Full about paragraph (2–3 sentences)
+- (Future) homepage screenshot
+- (Future) primary typography detection
+
+**Scope of "full":**
+When a user buys Prompt Studio, we upgrade THEIR brand + ALL their current competitor brands to full enrichment. Adding a new competitor after that? Auto-upgrade applies.
+
+**Why bundled with Prompt Studio:**
+- Both are "set up my workspace" polish features, bought in the same moment
+- Prompt Studio generates 50 prompts, Full Enrichment makes the dashboard gorgeous — together they're the onboarding package
+- Single $29 purchase covers both (no cart complexity)
+
+### Updated Prompt Studio positioning
+
+Prompt Studio v2 now delivers **two things**:
+1. 50 AI-generated buyer prompts tailored to the brand
+2. Full brand enrichment for the user's brand + all tracked competitor brands
+
+This is actually a stronger $29 value prop than prompts alone. The dashboard visibly transforms when it's bought.
+
+---
+
+## 7. Estimated costs at scale
+
+### Basic enrichment
+
+- 200 customers × their own brand = 200 basic enrichments/month new
+- 200 customers × ~8 competitors × 60% unique (rest are popular brands already enriched) = 960 new competitor enrichments/month
+- Total new basic enrichments: ~1,160/month
+- Cost: 1,160 × $0.005 = **$5.80/month**
+
+### Full enrichment (only paid purchases)
+
+- Assume 30% of customers buy Prompt Studio (= 60 purchases/month)
+- Each purchase upgrades their brand + ~8 competitors = 9 brands to full
+- New full enrichments/month: 540
+- Cost: 540 × $0.02 = **$10.80/month**
+
+### Periodic refresh (every 90 days)
+
+- Brands refresh when enriched_at > 90 days old
+- Applies to all existing enriched brands
+- At steady state: 1,160 basic refresh + 540 full refresh / 3 months
+- Monthly average: ~565 refreshes
+- Cost: mixed tier averaging ~$0.01 = **$5.65/month**
+
+**Total brand enrichment cost at scale: ~$22/month.** Trivial.
+
+### Savings from deduplication
+
+Without brand-level deduplication, every customer who adds Stripe as a competitor triggers a fresh fetch. At 200 customers × 8 competitors with 60% unique = current 1,600 fetches/month, we'd pay for all of them. With dedup, we pay for 960. Saves ~$13/month in repeated work.
+
+Net: **the brand layer actually saves money at scale** compared to the naive "fetch competitor data on every add" approach.
+
+---
+
+## 8. What changes in the existing docs
+
+### Architecture v2.1 — add a new section
+
+After section 5 (Database schema), insert:
+
+```
+## 5a. Brand enrichment layer (v2.2 addition)
+
+- Global `brands` table deduplicates brand metadata across users.
+- `sites.brand_id` and `competitors.brand_id` link to brands.
+- `BrandService` handles upsert + enrichment (basic/full tiers).
+- Basic enrichment runs automatically on brand creation.
+- Full enrichment runs on Prompt Studio purchase.
+```
+
+### Pricing v4 — update Prompt Studio section
+
+Prompt Studio at $29 now includes:
+- 50 AI-generated buyer prompts (existing)
+- **Full brand enrichment for your brand + all tracked competitors** (new)
+
+Update the margin math:
+- Old cost to deliver: ~$0.76 (Firecrawl + Gemini for 50 prompts)
+- New cost to deliver: $0.76 + full enrichment × (1 + avg competitors)
+  - Starter (3 competitors): $0.76 + 4 × $0.02 = $0.84
+  - Growth (10 competitors): $0.76 + 11 × $0.02 = $0.98
+  - Scale (25 competitors): $0.76 + 26 × $0.02 = $1.28
+- Margin at $29: still 95%+. Trivial impact.
+
+### Copy Kit v2.1 — update
+
+In the Prompt Studio feature description, add:
+> Prompt Studio also upgrades your entire workspace to Brand Mode — your brand and every competitor you track get full visual treatment (logos, colors, positioning tags) across every dashboard view.
+
+In the onboarding email after first payment:
+> Prompt Studio has generated 50 buyer prompts for {brand} — and upgraded your workspace to Brand Mode. Check out your refreshed competitor dashboard.
+
+### Free Tool Catalog — minor updates
+
+The Wrong Facts Finder, Brand vs Category Ranking, and Share of Voice tools all benefit from brand enrichment (they show logos + colors in results). Note this in each tool's spec.
+
+---
+
+## 9. Implementation order (fits into Phase 0.5)
+
+Good news: this is **strictly additive** and can be slipped into Phase 0.5 or done as a separate Phase 0.6 right after.
+
+### If added to Phase 0.5 (adds ~2 days):
+
+Between Stage 3 (migrations) and Stage 4 (CreditService):
+
+**Stage 3.5 — Brand layer migrations + BrandService**
+- Apply 5 brand migrations from Section 3
+- Implement `BrandService.ts` from Section 4
+- Wire into signup flow: on site creation, call `BrandService.onBrandReferenced(domain, 'basic')`
+- Wire into competitor add flow: same call for competitor's domain
+- Wire into Polar webhook: on Prompt Studio purchase, call `enrichFull` for brand + all tracked competitors
+
+### If delayed to Phase 0.6 (safer):
+
+- Phase 0.5 ships as originally specced
+- Phase 0.6 is a 2-day focused sprint for brand layer
+- Total Phase 0.5 stays at 2 weeks; Phase 0.6 adds 2 days before Phase 1 starts
+
+**Recommendation: do it as Phase 0.6.** Phase 0.5 is already a big oneshot. Brand enrichment is genuinely independent — the credit ledger and security layer don't touch `brands` at all. Ship Phase 0.5, verify it's solid, then do a small Phase 0.6 before Phase 1 (Sentinel) where brands will become genuinely useful.
+
+---
+
+## 10. What this doesn't change
+
+Most of the architecture is untouched:
+
+- ✅ `sites` table stays the same (gains only `brand_id` column)
+- ✅ `competitors` table stays the same (gains only `brand_id` column)
+- ✅ All existing endpoints keep working unchanged
+- ✅ Credits + billing still tied to `sites.id` (unchanged)
+- ✅ RLS policies on `sites`, `competitors`, etc. unchanged
+- ✅ All UI routing unchanged (`/site/[siteId]` still works the way it does)
+- ✅ Every migration is purely additive
+
+Zero breaking changes. Zero production risk. Small code addition.
+
+---
+
+## 11. Summary for the impatient
+
+- **You're conceptually right**: we track brands, not sites. The UI and reports are cleaner when everything is a brand.
+- **You're right about Firecrawl**: its `/scrape` endpoint with `formats: ['metadata']` returns og tags, favicon URLs, and enough raw HTML to extract colors and brand details. Not a dedicated "branding" endpoint, but the data is there.
+- **Don't rename `sites` → `brands`**: too expensive for zero customer-facing gain, and `sites` actually means "billing relationship" which is a different concept.
+- **Do add a new `brands` table**: global, deduplicated, shared across all users. `sites.brand_id` and `competitors.brand_id` link to it.
+- **Two-tier enrichment model:**
+  - **Basic** (free, automatic): name, favicon, logo URL, description. ~$0.005/brand.
+  - **Full** (paid, bundled with Prompt Studio $29): colors, tagline, category, positioning. ~$0.02/brand.
+- **Single `BrandCard` component** used everywhere — competitors, reports, dashboard header, share-of-voice legend.
+- **Migrations are 100% additive.** Zero risk.
+- **Total cost at scale: ~$22/month**, with actual savings vs current "refetch every time" competitor logic.
+- **Ship as Phase 0.6** — 2-day sprint after Phase 0.5 lands, before Phase 1 (Sentinel).
+
+The semantic clarity is genuine and the implementation is cheap. Do it.

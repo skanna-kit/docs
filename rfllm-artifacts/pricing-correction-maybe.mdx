@@ -1,0 +1,496 @@
+---
+title: 'Pricing Corrections'
+description: 'Pricing refinements based on real-world token usage, trial abuse mitigation strategy, and a plan for expanding the free tool catalog.'
+icon: 'pencil'
+---
+
+# ReadyForLLM — Pricing Refinements + Free Tool Catalog
+
+**Date:** April 16, 2026
+**Status:** Three corrections to Pricing-Economics-v4. All minor, all worth making.
+
+---
+
+## Correction 1: Token math was too optimistic
+
+### What was wrong
+
+v4 assumed 100 input tokens per model query. Reality: we send a **system prompt** (~120 tokens: "You are a helpful AI assistant answering a buyer's question about a product category. Include specific company/product names. Format as 2–3 short paragraphs..."), plus **category/context hints** (~80 tokens), plus the customer's actual prompt text (up to 125 tokens).
+
+**Realistic input: ~300 tokens per model query.** Plus extraction pass input goes from 1,000 → 1,200 tokens (longer real-world answers), and extraction output from 200 → 250 tokens.
+
+### What it does to margins
+
+| Model | Old cost/run | New cost/run | Delta |
+|---|---|---|---|
+| gpt-4o-mini | $0.00249 | $0.00297 | +19% |
+| claude-haiku-4-5 | $0.00610 | $0.00675 | +11% |
+| gemini-2.5-flash | $0.00403 | $0.00454 | +13% |
+| perplexity-sonar | $0.00290 | $0.00355 | +22% |
+| gpt-5 | $0.01013 | $0.01083 | +7% |
+| claude-sonnet-4-5 | $0.01430 | $0.01535 | +7% |
+| gemini-2.5-pro | $0.01013 | $0.01083 | +7% |
+| perplexity-sonar-pro | $0.01430 | $0.01535 | +7% |
+| grok-4 | $0.01430 | $0.01535 | +7% |
+
+**Why the damage is small:** output tokens are the expensive part (10x more expensive than input on most models). Raising input 3x barely moves the needle on models where output dominates.
+
+### Revised tier margins
+
+| Tier | Price | Credits | Realistic COGS | Margin $ | Margin % |
+|---|---|---|---|---|---|
+| Starter | $89 | 6,000 | $29.40 | $59.60 | **67.0%** |
+| Growth | $249 | 20,000 | $93.76 | $155.24 | **62.3%** |
+| Scale | $799 | 80,000 | $363.48 | $435.52 | **54.5%** |
+
+**Worst case (100% cheap model usage — cheapest per credit for customers, most expensive per credit for us):**
+
+| Tier | Worst-case COGS | Worst-case Margin |
+|---|---|---|
+| Starter | $31.17 | **65.0%** |
+| Growth | $99.66 | **60.0%** |
+| Scale | $387.06 | **51.6%** |
+
+**Net impact:** margins drop ~1 percentage point across all tiers. Still healthy. Pricing stays at $89 / $249 / $799. No subscription price change needed.
+
+### Update to code
+
+Update these constants in `rfllm-brain/src/lib/constants.ts`:
+
+```ts
+// Previously 100 / 800; corrected for real system-prompt overhead
+export const MODEL_INPUT_TOKEN_BUDGET = 300;
+export const MODEL_OUTPUT_TOKEN_BUDGET = 800;  // unchanged
+export const EXTRACTION_INPUT_TOKEN_BUDGET = 1200;  // was 1000
+export const EXTRACTION_OUTPUT_TOKEN_BUDGET = 250;  // was 200
+```
+
+Update the credit-cost preview in the dashboard to use these.
+
+---
+
+## Correction 2: Trial abuse mitigation
+
+### The concern
+
+If someone starts a trial, burns all 6,000 credits, then leaves — we're out the LLM costs with nothing back. At 200 trials/month and 30% conversion, 140 non-converters could theoretically burn through ~$2,000/month in LLM waste.
+
+### The reality before mitigation
+
+A customer starting a 14-day Starter trial can burn **at most 6,000 credits**. Here's the realistic harm scenarios:
+
+**Scenario A: Natural max-usage (well-intentioned but doesn't convert)**
+- 50 prompts × 14 days × 4 cheap models = 2,800 credits naturally consumed
+- Cost to us: 2,800 × $0.00408 = **$11.42**
+- Almost harmless.
+
+**Scenario B: Abuse — customer fills trial with prompts on day 1, lets it run**
+- 6,000 credits consumed across 14 days
+- Cost to us: **$24.48 per abused trial**
+- Still not catastrophic per-case, but cumulative at scale.
+
+**Scenario C: Viral moment (200 trial signups in a week)**
+- Worst case if ALL bomb and leave: 200 × $24.48 = **$4,896**
+- But realistically ~30–50% of signups truly bomb: ~$1,500–$2,500 in waste in one week
+
+**Month-1 economics at 200 trials/mo, 30% conversion:**
+- Trial costs: ~$3,231 in LLM COGS
+- New MRR: $5,340 (60 new customers × $89)
+- **Net month-1 profit: +$2,108**
+
+So even unmitigated, trial math works **as long as conversion stays above ~20%.** Below 20% conversion, net profit flips negative.
+
+### The mitigation combo: 3 changes, minor engineering, big downside protection
+
+**Change 1: Trial is 7 days, not 14**
+- Most competitive SaaS tools with real daily-run value use 7-day trials (Linear, Cal.com, Attio all do)
+- Naturally caps credit burn to ~2,800 credits under normal usage
+- Small conversion-rate risk (~5-10% fewer conversions per industry benchmark)
+- **Engineering:** trivial — change the constant in `sites.trial_ends_at` grant
+
+**Change 2: Trial runs only standard models, never frontier**
+- Trial customer wants to see what a paid Starter looks like — Starter doesn't get frontier anyway, so this matches
+- Prevents "try frontier models for free" exploit
+- Makes the Growth upgrade path more concrete: "frontier models available on Growth"
+- **Engineering:** trivial — check `isTrial` flag on prompt creation, restrict model set
+
+**Change 3: Trial throttle of 500 credits/day**
+- Forces distributed, authentic usage patterns
+- Prevents "open trial, add 50 prompts, fire force-reruns, leave" bomb pattern
+- Real customers don't notice (they add prompts over days, not minutes)
+- Abusers hit the throttle instantly
+- **Engineering:** add a daily-window check in `CreditService.consume()` — if trial site AND `consumed_today + amount > 500`, block run and message "Trial throttle reached for today — resumes midnight UTC"
+
+### Max exposure after mitigation
+
+- Max credits burn per trial: **7 days × 500/day = 3,500 credits** = **$14.28 loss per bombed trial**
+- vs unmitigated $24.48 loss per bombed trial
+- **42% reduction in per-trial exposure**
+
+### Monthly savings at 200 trial volume
+
+- OLD waste (140 non-converters × 60% burn of 6k): **$2,056/month**
+- NEW waste (140 non-converters × 60% burn of 3.5k): **$1,200/month**
+- Monthly savings: **~$857**
+- Annual savings: **~$10,282**
+
+That's enough to fund Apollo Pro + LinkedIn Sales Nav + 2 other SaaS tools for the year.
+
+### Copy update needed
+
+Add to the Welcome email in Copy-Kit-v2.1-delta:
+
+> Your 7-day trial includes:
+> - **3,500 credits** across the trial period (500/day throttle keeps things simple)
+> - All 4 standard AI models (GPT-4o-mini, Claude Haiku 4.5, Gemini 2.5 Flash, Perplexity Sonar)
+> - Full Starter feature set: citation tracker, Slack alerts, 50 tracked prompts
+>
+> On day 7, your trial auto-converts to Starter ($89/mo). Cancel any time.
+
+Remove any mention of "14 days" from marketing and dashboard copy.
+
+---
+
+## Correction 3: Amazing free tools — the full catalog
+
+Free tools are your single best asset. They cost very little to run, they compound through SEO, they're shareable, and every one is a lead-gen pipe that drops users into signup flows.
+
+### Cost reality check
+
+At 200 uses/day per tool (realistic for a niche B2B tool in its first year), **15 new tools cost ~$1,524/month** in LLM COGS. Even at wildly viral 1,000 uses/day each, ~$7,600/month.
+
+Break-even: if these tools collectively drive **~570 Starter conversions/year**, they pay for themselves. At 3% tool-to-trial conversion, that's ~19,000 total tool uses to break even. Trivial at any real scale.
+
+**The 10 existing free tools stay as-is.** Below are 15 NEW tool ideas worth building, ranked by expected lead-gen value.
+
+### Tier S — Must build (highest lead-gen potential)
+
+#### 1. **AI Readiness Score** — `/tools/ai-readiness-score`
+
+One-URL tool. Enter your domain, we fetch it + analyze, return a 0–100 "AI readiness" score with a punch list of specific fixes.
+
+**What it measures:**
+- Has llms.txt? (+10 pts)
+- Has structured data / schema.org markup? (+15 pts)
+- Robots.txt AI-aware? (+10 pts)
+- Pricing page exists and is crawlable? (+10 pts)
+- FAQ page exists? (+10 pts)
+- Documentation site linked? (+10 pts)
+- Load speed `<`2s? (+10 pts)
+- Structured content (H1/H2/H3 hierarchy)? (+10 pts)
+- ...and more
+
+**Why it's powerful:**
+- Works on ANY domain — low friction
+- Score is immediately shareable ("We scored 72/100 on ai-readiness")
+- Punch list is actionable (customers can DIY the easy fixes themselves, and see the ones that require ReadyForLLM)
+- Zero LLM cost — pure HTML fetch + analysis
+- Cost: **$0.005 per run** (just Firecrawl fetch)
+
+**CTA:** "Track your score daily in ReadyForLLM — we'll alert you when it changes."
+
+---
+
+#### 2. **Wrong Facts Finder** — `/tools/wrong-facts`
+
+Enter domain. We query GPT-5, Claude, Gemini, Perplexity with: "What does [company] do? List their pricing, key features, and ideal customer."
+
+We then scrape your actual site and compare. **Return: a list of factual errors across models.**
+
+**Example output:**
+> We found 3 errors in how AI describes {company}:
+>
+> - ❌ **ChatGPT says your Starter plan is $49/mo.** Your site says $79/mo.
+> - ❌ **Claude thinks you're still headquartered in SF.** Your site says NYC.
+> - ❌ **Gemini says you support 3 integrations.** Your site lists 12.
+
+**Why it's viral:**
+- Specific, surprising, actionable — people screenshot this
+- Every B2B SaaS team has 2–5 factual errors AI is spreading
+- It's the tool that makes people say "wait WHAT is ChatGPT saying about us?"
+- Cost: **$0.035 per run** (4 model queries + extraction + Firecrawl)
+
+**CTA:** "Track these daily and get alerted when answers drift."
+
+---
+
+#### 3. **Brand vs Category Ranking** — `/tools/ranking-battle`
+
+Enter your brand + your category ("project management for small teams"). We query 4 models, "What are the best 5 {category}?", and return where you rank.
+
+**Output:**
+> On "best project management for small teams":
+> - ChatGPT: **#3** (Asana #1, Linear #2, **YourBrand** #3, Trello #4, ClickUp #5)
+> - Claude: **Not mentioned** (Linear, Asana, Notion, Basecamp, Monday)
+> - Gemini: **#4**
+> - Perplexity: **#2**
+
+**Why it converts:**
+- Immediately tells you "am I winning this category?"
+- Reveals specific competitors beating you
+- One-line summary becomes the social-share moment: *"I'm #4 in ChatGPT for [category] — how about you?"*
+- Cost: **$0.03 per run**
+
+**CTA:** "Track this daily across every model with Answer Monitor."
+
+---
+
+#### 4. **Domain Ranking Battle** — `/tools/ranking-battle`
+
+Two-domain head-to-head. Paste domain A + domain B, pick a category prompt. We query 4 models: "Compare {A} vs {B} for {category}" — return the verdict.
+
+**Output:**
+> 🥊 **YourBrand.com vs Competitor.com — "best for enterprise data teams"**
+>
+> - ChatGPT picks: **Competitor.com** (3 specific strengths cited)
+> - Claude picks: **YourBrand.com** (2 strengths cited)
+> - Gemini picks: **Tie** (mentions trade-offs)
+> - Perplexity picks: **Competitor.com** (cites 2024 review article)
+>
+> Overall: Competitor wins 2, you win 1, 1 tie.
+
+**Why it works:**
+- Head-to-head = engaging, shareable
+- Target: people comparing themselves vs direct competitors (high intent)
+- Often produces a surprise "wait, AI thinks they're better?" moment
+- Cost: **$0.02 per run**
+
+**CTA:** "Track gaps like this across 10 competitors."
+
+---
+
+#### 5. **AI Share of Voice Snapshot** — `/tools/share-of-voice`
+
+Enter 3–5 domains in your category. We query 4 models with 3 representative buyer prompts for the category. Return a normalized share-of-voice score.
+
+**Output:**
+> **Share of voice on "top data warehouses" across 3 buyer prompts:**
+>
+> - Snowflake: 38%
+> - Databricks: 27%
+> - BigQuery: 14%
+> - YourBrand: 9%
+> - Redshift: 12%
+
+**Why this is viral:**
+- Gives a provocative number — "you have 9% share of voice"
+- Enables category-level comparisons that don't exist anywhere else
+- Each run generates shareable chart-worthy data
+- Cost: **$0.045 per run** (12 queries)
+
+**CTA:** "Monitor this weekly across unlimited categories."
+
+---
+
+### Tier A — Should build (strong value)
+
+#### 6. **Category Prompt Universe** — `/tools/prompt-universe`
+
+Enter your category (e.g., "observability tools"). We generate the 30 most likely prompts a buyer would type into ChatGPT/Claude when researching this category, organized by buyer stage.
+
+**Output:**
+> **30 buyer prompts for "observability tools":**
+>
+> **Awareness stage:**
+> - "What is observability?"
+> - "difference between logging and observability"
+> - ...
+>
+> **Consideration:**
+> - "best observability platform for kubernetes"
+> - "Datadog alternatives"
+> - ...
+>
+> **Decision:**
+> - "observability tool pricing comparison"
+> - ...
+
+**Why it works:**
+- Immediately gives the user something they can't easily get elsewhere
+- Pairs perfectly with "Track these 30 prompts in Answer Monitor" upsell
+- Very high perceived value (users save this output)
+- Cost: **$0.025 per run**
+
+---
+
+#### 7. **AI FAQ Generator** — `/tools/ai-faq-generator`
+
+Enter your domain. We Firecrawl key pages, then use Gemini to generate a 10-question FAQ in your site's voice, specifically designed to be cited in AI answers (with clear Q/A structure, direct language, answers to buyer objections).
+
+**Why it works:**
+- FAQ pages are one of the top content forms cited in AI answers (structured data)
+- This gives a concrete deliverable users can copy-paste to their site
+- No other tool does this — there are "FAQ generators" but none tuned for AI citations specifically
+- Cost: **$0.008 per run**
+
+**CTA:** "Update your FAQ monthly as buyer questions evolve — tracked by Answer Monitor."
+
+---
+
+#### 8. **Buyer Persona Prompt Generator** — `/tools/persona-prompts`
+
+Enter your domain + target buyer persona ("VP of Engineering, fintech, 500+ employees"). We generate 15 buyer-specific prompts, tailored to the exact language a VP Eng at fintech uses (not generic SaaS prompts).
+
+**Why this is magnetic:**
+- "What does a VP Eng at fintech actually ask ChatGPT?" is a real pain for marketing teams
+- Results feel specifically useful rather than generic
+- Easy upsell: "Track these 15 persona-specific prompts in Answer Monitor."
+- Cost: **$0.01 per run**
+
+---
+
+#### 9. **AI Answer Diff (Across Models)** — `/tools/answer-diff`
+
+Enter a single prompt. We query 4 models with it, side by side. Compare and highlight differences.
+
+**Example:**
+> Prompt: "Is {YourCompany} HIPAA compliant?"
+>
+> | Model | Answer |
+> |---|---|
+> | ChatGPT | **Yes, they're HIPAA compliant** (per their security page) |
+> | Claude | **I don't have confirmed information** about their compliance status |
+> | Gemini | **They mention HIPAA in their docs but unclear if certified** |
+> | Perplexity | **Yes, based on 2024 SOC2 Type II report** (cites URL) |
+
+**Why it matters:**
+- Shows the user that AI answers are inconsistent — real problem
+- Sets up the "you need monitoring" pitch naturally
+- Shareable (people love comparison tables)
+- Cost: **$0.015 per run**
+
+---
+
+#### 10. **ChatGPT Screenshot Test** — `/tools/screenshot-test`
+
+Enter a prompt + domain. We run it against GPT-5 and generate a **realistic-looking screenshot** of what the ChatGPT answer would look like (including the classic UI), with the exact text.
+
+**Why it goes viral:**
+- Shareable image with "This is what ChatGPT says about your brand" branding
+- Actual ChatGPT UI recreation = instantly recognizable, socially compelling
+- People post these on Twitter/LinkedIn — organic brand visibility
+- Cost: **$0.008 per run** (just the model call; screenshot rendering is CSS/HTML to PNG)
+
+**Note:** design the generated image carefully — must clearly say "ReadyForLLM test" or "Simulated" to avoid legal issues about Mimicking ChatGPT's brand. A watermark + subtle but visible "AI visibility snapshot by ReadyForLLM.com" does the trick.
+
+---
+
+### Tier B — Nice to have (good lead-gen, more niche)
+
+#### 11. **AI Citation Lookup** — `/tools/citation-lookup`
+
+Paste a URL. We query 4 models: "Do you cite or reference content from {url}?" Return who cites you, for what types of queries, how often.
+
+**Cost:** $0.01/run
+
+#### 12. **AI-Aware Robots.txt Generator** — `/tools/robots-generator`
+
+Enter domain. We fetch current robots.txt, suggest an AI-aware rewrite with allow/block rules for every major AI crawler, optimized for your risk profile (lean-in, balanced, defensive). Downloadable.
+
+**Cost:** $0.003/run
+
+#### 13. **Competitor Positioning Diff** — `/tools/positioning-diff`
+
+Enter two domains. We scrape both, extract positioning language ("who they say they're for"), and return: where you overlap, where you differ, where one has language the other doesn't.
+
+**Cost:** $0.015/run
+
+#### 14. **AI Answer Time Machine** — `/tools/time-machine`
+
+Tracks public archives (Wayback Machine snapshots) of AI answers from 2024 forward for top categories. Lets users see how AI answers evolved over time for their category.
+
+**Hardest to build** (requires ongoing data collection + a lot of infrastructure for a free tool). Consider deferring to month 6+.
+
+#### 15. **Featured Snippet vs AI Citation Analyzer** — `/tools/snippet-vs-citation`
+
+Paste a keyword. We compare what ranks #1 in Google featured snippets (via SerpApi or scraping) vs what AI models cite for the same query. Highlight the gap.
+
+**Cost:** $0.015/run. Interesting for SEO-adjacent buyers comparing old vs new strategy.
+
+---
+
+### Tier C — Skip unless specific reason
+
+- **Any tool that requires paid API integrations** (SerpApi, ZoomInfo, etc.) — these have marginal costs that scale linearly with usage, not flat like LLMs. Avoid at the free-tier layer.
+- **Interactive "AI Chat" style tools** — customer types a conversation, we respond. Too open-ended, high cost, low signal on who's using it.
+- **Tools that scrape competitor sites without consent** — ethical landmine, PR risk.
+
+---
+
+### The full free tool roadmap
+
+Ship in this order over 12 months. Total added LLM COGS: ~$600–$1,500/mo at peak.
+
+**Months 1–3** (4 tools):
+- AI Readiness Score
+- Wrong Facts Finder
+- Brand vs Category Ranking
+- AI FAQ Generator
+
+**Months 4–6** (4 tools):
+- AI Share of Voice Snapshot
+- Domain Ranking Battle
+- Category Prompt Universe
+- AI Answer Diff
+
+**Months 7–9** (4 tools):
+- Buyer Persona Prompt Generator
+- ChatGPT Screenshot Test
+- AI Citation Lookup
+- AI-Aware Robots Generator
+
+**Months 10–12** (3 tools):
+- Competitor Positioning Diff
+- Featured Snippet vs AI Citation
+- AI Answer Time Machine (if viable)
+
+By month 12: **25 total free tools** (10 existing + 15 new). That's a content + SEO moat that competitors literally cannot match without eating the LLM COGS too.
+
+### Cost budget for free tools (month-by-month)
+
+| Month | # Tools | Realistic uses/day/tool | Monthly LLM COGS |
+|---|---|---|---|
+| 1 | 13 | 30 | ~$200 |
+| 3 | 14 | 100 | ~$500 |
+| 6 | 18 | 200 | ~$1,100 |
+| 9 | 22 | 300 | ~$1,600 |
+| 12 | 25 | 500 | ~$2,500 |
+
+**At month 12:** $2,500/mo in free-tool COGS. If free tools drive 15% of total new signups (40 new customers at that scale), that's 40 × $89 × 12 = $42,720 in first-year revenue from the tools. Payback ratio: ~17x. Worth every dollar.
+
+---
+
+## Summary of changes
+
+### Token math → refreshed
+- Input tokens assumption: 100 → **300**
+- Extraction: 1,000/200 → **1,200/250**
+- Tier margins: still 55–67%, down ~1 percentage point
+- **No price change needed.** All three tiers remain profitable at realistic and worst-case usage.
+
+### Trial abuse → mitigated
+- **Trial shortened: 14 days → 7 days**
+- **Trial restricted to standard models only** (no frontier access)
+- **Trial throttle: 500 credits/day max**
+- Per-trial max exposure: $24.48 → **$14.28** (42% reduction)
+- Annual savings at 200 trials/mo: **~$10,282**
+
+### Free tools → massively expanded
+- Keep existing 10
+- Add 15 new tools over 12 months, in specific order
+- Total COGS at peak: ~$2,500/month
+- Expected ROI: ~17x in first-year revenue
+- Top 5 to build first: AI Readiness Score, Wrong Facts Finder, Brand vs Category Ranking, AI Share of Voice Snapshot, AI FAQ Generator
+
+### Things to update in docs
+
+- [ ] Pricing-Economics-v4.md: update tier margin table (67% / 62% / 55%)
+- [ ] Pricing-Economics-v4.md: change "14-day trial" to "7-day trial" everywhere
+- [ ] Copy-Kit-v2.1-delta.md: welcome email includes 7-day trial and throttle language
+- [ ] Copy-Kit-v2.1-delta.md: pricing FAQ updates ("why a 7-day trial?")
+- [ ] Architecture-v2.1.md: add trial throttle logic to CreditService.consume()
+- [ ] Architecture-v2.1.md: add `trial_daily_limit` flag on `sites` (default 500 when in trial, null otherwise)
+- [ ] Roadmap-v2.md: free tool order updated to match the 12-month rollout above
+- [ ] GTM-v2.md: free tool channel strategy updated with specific tools by launch month
+
+All three of these are drop-in additions. Nothing in the core architecture or strategy changes — this is strictly tightening.

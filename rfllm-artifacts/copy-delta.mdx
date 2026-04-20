@@ -1,0 +1,489 @@
+---
+title: 'Copy Changes Delta for v2.1'
+description: 'The new brand entity strategy: a global enrichment layer for consistent logos, names, and colors across the dashboard.'
+icon: 'pencil'
+---
+
+# ReadyForLLM — Copy Kit v2.1 Delta
+
+**Last updated:** April 16, 2026
+**Relationship to v2.0:** This is a **delta document** — it updates only the sections of the v2.0 copy kit that changed with the credit system. All other sections from v2.0 (homepage hero, all feature pages, free tools list, social bios, pivot announcement, cold outbound, voice playbook) remain in force **unchanged**.
+
+---
+
+## 0. Which sections of v2.0 this document replaces
+
+- **Part 4 — Pricing page** → fully replaced by Section 1 below
+- **Part 5 — Free tools** → two small updates noted in Section 2
+- **Part 7 — Signup flow microcopy** → steps 1, 3, 5, 6 updated in Section 3
+- **Part 8 — Dashboard microcopy** → credit meter copy added in Section 4
+- **Part 9 — Transactional emails** → welcome, first-run-complete, weekly digest, and new "credits low" email in Section 5
+- **Part 3 — Feature pages** → minor updates to Answer Monitor's stats and Prompt Library copy in Section 6
+
+Everything not listed above is unchanged from v2.0 copy kit. Do not re-edit those sections.
+
+---
+
+## 1. Pricing page (full replacement of Part 4)
+
+### Hero
+
+**Eyebrow:** Pricing
+
+**Headline**
+`>` Credits, not surprise invoices. Pay for what you track.
+
+**Subheadline**
+`>` Every plan includes a monthly pool of credits. One credit tracks one prompt on a standard model. Upgrade to frontier models — same prompts, better fidelity — for 3 credits a run. Use what makes sense for your category. No per-seat fees until you want them.
+
+### Billing toggle
+
+Monthly label: **Monthly**
+Yearly label: **Yearly · save 15%**
+
+### Tiers
+
+**Starter — $89/mo** ($76/mo billed annually)
+*Tagline:* For founders and indie teams tracking AI visibility for the first time.
+
+*Credits:* **6,000 credits/month**
+
+*What that buys you:*
+- Up to 50 tracked prompts
+- 4 cheap models (GPT-4o-mini, Claude Haiku 4.5, Gemini 2.5 Flash, Perplexity Sonar)
+- Daily runs — 50 prompts × 4 models daily = 6,000 credits exactly
+- Up to 3 competitors tracked (free — no credit cost)
+- Citation tracker + webhook
+- Slack drift alerts
+- 30-day answer history
+- Email support
+- 1 seat
+
+*CTA:* **Start 14-day trial**
+
+**Growth — $249/mo** ($211/mo billed annually) *[highlighted]*
+
+*Tagline:* For B2B SaaS teams who want the data in front of leadership every week.
+
+*Credits:* **20,000 credits/month**
+
+*What that buys you:*
+- Up to 200 tracked prompts
+- 4 cheap models + 5 frontier models unlocked (GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro, Perplexity Sonar Pro, Mistral Large)
+- Daily runs standard — mix cheap and frontier per prompt
+- Up to 10 competitors tracked
+- Everything in Starter, plus:
+- 12-month answer history
+- Team seats (5 included)
+- Slack + webhook + CSV export
+- Weekly automated gap reports
+- **Prompt Studio scan free** (normally $29)
+- Priority support, 24h response
+
+*CTA:* **Start 14-day trial**
+
+**Scale — $799/mo** ($679/mo billed annually)
+
+*Tagline:* For mid-market teams tracking multiple brands, categories, or markets.
+
+*Credits:* **80,000 credits/month**
+
+*What that buys you:*
+- Up to 500 tracked prompts
+- Every model unlocked — cheap, frontier, and premium (xAI Grok-4)
+- Daily runs standard, hourly available on priority prompts
+- Up to 25 competitors tracked
+- Everything in Growth, plus:
+- Unlimited history
+- Unlimited seats
+- API access (read + write)
+- Data warehouse sync (Fivetran-compatible CSVs)
+- Priority support, 4h response
+- Quarterly strategic review call
+
+*CTA:* **Talk to us**
+
+**Enterprise** *(hide until 20 Growth customers exist)*
+
+*Tagline:* Custom deployments for larger teams and regulated industries.
+
+- Custom credit allocation starting at 200,000/mo
+- SSO, SCIM, audit log export
+- DPA, MSA, custom SLAs
+- Self-hosted edge delivery
+- Dedicated solutions architect
+
+*CTA:* **Talk to sales**
+
+### Below-the-grid line
+
+*All prices in USD. Annual billing saves 15% — about two months free. No setup fees. Cancel any time. Unused monthly credits don't roll over; top-up credits expire 90 days after purchase.*
+
+### What is a credit? (live on the pricing page, right under the tier grid)
+
+**What is a credit?**
+
+One credit runs one tracked prompt against one standard AI model. Frontier models use 3 credits per run. Premium models (Grok) use 4.
+
+Here's what that means in practice:
+
+- Track 10 prompts daily across 4 standard models = **1,200 credits/month**
+- Add 5 priority prompts daily on 2 frontier models = **+900 credits/month**
+- Need a one-time push for a launch? **Buy a top-up, no subscription change.**
+
+The pricing page includes a live calculator below this line so prospects can model their expected usage before signing up.
+
+### Pricing FAQ
+
+**Q: Why credits instead of "50 prompts, 4 models" like everyone else?**
+Because some customers want 200 shallow prompts weekly, and some want 10 prompts hourly on frontier models. A flat count would force them into one shape. Credits let you spend your budget the way your category needs.
+
+**Q: Will I hit my credit limit?**
+You shouldn't, if you're tracking at a normal cadence. The dashboard shows your projected end-of-month balance so you'll know days in advance. If you do hit it, nothing breaks — scheduled runs pause, we email you, and you can top up starting at $19 or upgrade tier.
+
+**Q: Do unused credits roll over?**
+Subscription credits: no, they refresh every billing cycle. Top-up credits: yes, they're yours for 90 days after purchase.
+
+**Q: What counts as a "standard" vs "frontier" model?**
+Standard = the cheaper, faster API tier of each provider (GPT-4o-mini, Claude Haiku 4.5, Gemini 2.5 Flash, Perplexity Sonar). Frontier = the full models that power the ChatGPT / Claude / Gemini / Perplexity Pro consumer apps (GPT-5, Sonnet 4.5, Gemini 2.5 Pro, Sonar Pro). Standard is ~90% of the signal at a third of the cost; frontier is what to use when a prompt's exact wording matters.
+
+**Q: Can I see what a prompt will cost before I save it?**
+Yes. Every prompt creation screen shows "This prompt costs X credits per run. At daily runs, that's Y credits/month." You know before you commit.
+
+**Q: What if I run out mid-month?**
+Your tracking pauses, not your account. We email you; you either top up ($19 for 1,000 credits / $49 for 3,000 / $139 for 10,000 / $349 for 30,000 / $999 for 100,000) or upgrade. Nothing is billed without you clicking.
+
+**Q: Do you use my prompts or data to train models?**
+No. We send your prompts to standard API endpoints with training-disabled flags (OpenAI, Anthropic, Google, and Perplexity all offer this by default on their paid API). Your prompts and the answers stay in your workspace.
+
+**Q: What's Prompt Studio?**
+A one-time scan of your site that generates 50 buyer prompts tailored to your category. $29 separately, free on Growth and Scale trials.
+
+**Q: Do you have a free tier?**
+No — but our `/audit/[domain]` URL and all 10 free tools let you try real ReadyForLLM data without signing up. The 14-day paid-plan trial is a full Starter with 6,000 trial credits plus Prompt Studio as a gift.
+
+**Q: Team seats?**
+1 on Starter, 5 on Growth, unlimited on Scale. Extra seats on Starter cost $19/mo each.
+
+**Q: What about annual billing?**
+15% off, roughly two months free. Cancel any time; unused months prorate refund. Credits still reset monthly — annual is just billing cadence, not credit allocation.
+
+**Q: Nonprofit / OSS discount?**
+50% off any self-serve plan for registered 501(c)(3)s and maintainers of OSS projects with 1k+ GitHub stars. Email hello@readyforllm.com.
+
+### Top-up packs (sub-section below main tier grid)
+
+**Need more credits this month?**
+
+No subscription change. One-click top-up. Credits expire 90 days after purchase.
+
+| Pack | Price | Effective rate |
+|---|---|---|
+| 1,000 credits | $19 | $0.019/credit |
+| 3,000 credits | $49 | $0.016/credit |
+| 10,000 credits | $139 | $0.014/credit |
+| 30,000 credits | $349 | $0.012/credit |
+| 100,000 credits | $999 | $0.010/credit |
+
+---
+
+## 2. Free tools updates (minor edits to Part 5)
+
+### Add this tool to the `TOOLS` array
+
+```ts
+  {
+    slug: "prompt-studio-preview",
+    name: "Prompt Studio Preview",
+    tagline: "10 buyer prompts for your site, generated in 30 seconds.",
+    description:
+      "Enter your domain. We scan it and suggest 10 buyer prompts your category probably searches. The full version gives 50 and lives in your dashboard.",
+    persona: "Marketer",
+    duration: "30 sec",
+    liteCTA: "Generate my prompts",
+    cta: {
+      label: "Get the full 50 prompts with Prompt Studio →",
+      href: "/pricing",  // or the in-product $29 purchase flow
+    },
+  },
+```
+
+### Remove this from the `TOOLS` array
+
+`manifest-generator` stays as a free tool forever (it's cheap to serve, drives SEO, and de-emphasizes llms.txt which is now a side utility). **Do not remove.**
+
+No other free tool changes.
+
+---
+
+## 3. Signup flow microcopy updates (replaces sections of Part 7)
+
+### Step 1 — Create account
+
+Unchanged from v2.0.
+
+### Step 3 — Pick starter prompts (updated)
+
+*Headline:* Pick prompts to start tracking.
+*Subheadline:* Each prompt you track runs daily against 4 standard models. That's 4 credits per run, or ~120 credits per prompt per month.
+
+*Helper (above library):* You've picked `{N}` prompts — that's about `{N×120}` credits a month. Your trial includes 6,000.
+
+*Primary CTA:* Start tracking (`{N}` prompts)
+*Secondary:* Or: **generate 50 prompts from your site with Prompt Studio** — free on your trial
+
+### Step 4 — Add competitors
+
+Unchanged from v2.0. Note: competitors add 0 credits to tracked prompts.
+
+### Step 5 — Install the tracker
+
+Unchanged from v2.0.
+
+### Step 6 — Done (updated)
+
+*Headline:* You're live. 6,000 trial credits, ready to go.
+*Body:* Sentinel runs overnight and fills the dashboard with your first real answers at ~03:00 UTC. You can track your credit usage from the meter in the header any time.
+
+*Primary CTA:* Go to dashboard
+
+### Post-signup empty states
+
+Add this one:
+
+- No credits consumed yet: *First run happens overnight. Your credit meter will start ticking tomorrow morning.*
+
+---
+
+## 4. Dashboard microcopy — credit meter copy (added to Part 8)
+
+### The persistent header meter, three states
+
+**State A — Healthy (balance `>` 20% of monthly allocation):**
+`>` ⚡ {balance} / {allocation} credits · resets in {daysRemaining} days
+
+**State B — Low (balance 5–20%):**
+`>` ⚠️ {balance} / {allocation} credits · resets in {daysRemaining} days · [Top up]
+
+**State C — Exhausted (balance `<` 5%):**
+`>` 🔴 {balance} credits · {pausedPromptCount} prompts paused · [Top up] · [Upgrade to {nextTier}]
+
+### The expanded side panel (on meter click)
+
+*Panel header:* Credit usage
+
+*Current balance section:*
+`>` **{balance} credits** of {allocation} monthly allocation
+`>` At your current rate (~{rate}/day), you'll use {projectedConsumption} before {resetDate}.
+`> {advisory — see below}`
+
+*Advisory copy, dynamic:*
+- If projected `>` allocation: "You're trending {overagePct}% over — consider a {packSize}-credit top-up or upgrading to {nextTier}."
+- If projected 70–99% of allocation: "You're on track to use most of this month's credits. Nice pacing."
+- If projected `<`50%: "You're using well under your allocation. Consider tracking a few more prompts, or downgrading to {lowerTier} if this is typical."
+
+*Recent consumption section header:* Top 5 prompts by credit spend this month
+
+*Recent transactions section header:* Last 20 transactions
+
+*CTAs at bottom of panel:*
+- [Top up credits →]
+- [Upgrade to {nextTier} →] (only shown if tier-upgrade math makes sense)
+
+### Tier-gate message when a Starter customer tries to unlock a frontier model
+
+`>` **Frontier models unlock on Growth.** You can keep tracking this prompt on the 4 standard models, or upgrade to Growth for access to GPT-5, Claude Sonnet 4.5, Gemini 2.5 Pro, Perplexity Sonar Pro, and Mistral Large. Frontier models use 3 credits per run vs 1 for standard.
+`>` [See Growth plan →]
+
+### Out-of-credits prompt add modal
+
+*Header:* You'd need {required} credits for this prompt, and you have {balance}.
+
+*Body:* At daily runs on 4 standard models, this prompt costs ~120 credits/month. You can:
+
+- Top up now — 1,000 credits for $19, instant
+- Reduce the prompt's run frequency (weekly = 28 credits/month)
+- Save as paused and enable when you have credits
+- Upgrade to Growth for 20,000 credits/mo
+
+*Primary CTA:* Top up (starts at $19)
+*Secondary:* Save as paused
+*Tertiary:* Cancel
+
+---
+
+## 5. Transactional emails — updates and additions (Part 9)
+
+### Welcome email (updated — trial credits language)
+
+*Subject:* Welcome to ReadyForLLM — 6,000 trial credits, first data tomorrow
+
+*Body:*
+Hi {firstName},
+
+You're in. Here's what's queued up:
+
+1. Your workspace starts with **6,000 credits** — enough to track 50 prompts daily across 4 models for the full 14 days.
+2. Want help picking prompts? **Prompt Studio is free on your trial** — it scans your site and suggests 50 buyer prompts tailored to your category. Normally $29; yours free.
+3. Overnight, we'll run your first prompts against ChatGPT, Claude, Perplexity, and Gemini. Your dashboard fills up around 03:00 UTC.
+4. On day 14, your trial converts to Starter ($89/mo) unless you cancel.
+
+Dashboard: https://app.readyforllm.com
+Prompt Studio: https://app.readyforllm.com/studio
+
+If anything is unclear, reply. This email goes to me.
+
+— Elvar
+Founder, ReadyForLLM
+Reykjavík
+
+### First-run-complete email (updated with credit usage)
+
+*Subject:* Your first ReadyForLLM report is live
+
+*Body:*
+Hi {firstName},
+
+Your first Sentinel run finished. Short summary:
+
+- **{nPrompts} prompts** tracked across 4 models
+- **Your brand appeared in {mentionCount}** of {totalAnswers} answers
+- **Top competitor by share: {topCompetitor}**
+- **Credits used:** {creditsUsed} of 6,000 ({pct}%)
+
+Full dashboard: {dashboardUrl}
+
+A few things worth checking this morning:
+- The prompts where you don't appear but expected to — those are your worklist
+- The models where you show up consistently vs. inconsistently
+- The competitor you didn't realize was ranking above you
+
+Reply if anything looks off.
+
+— Elvar
+
+### Credits-low email (new — fires at 80% consumption)
+
+*Subject:* You've used 80% of your ReadyForLLM credits
+
+*Body:*
+Hi {firstName},
+
+Quick heads-up — you've used about 80% of your {allocation} monthly credits on {domain}. You've got **{remaining} credits left**, and about **{daysLeft} days** until your monthly reset.
+
+If you keep your current tracking pace, you're projected to run out around {projectedDate}.
+
+A few paths:
+
+- **Top up** starts at $19 for 1,000 credits — just enough for a few more days of tracking
+- **Upgrade to Growth** ($249/mo) for 20,000 credits, 5 frontier models, and weekly gap reports
+- **Reduce run frequency** on low-priority prompts (weekly runs use 25% the credits of daily)
+
+[Top up →]({topupUrl}) · [See Growth plan →]({upgradeUrl}) · [Adjust prompts →]({promptsUrl})
+
+Or just ride it out and resume at month end. Prompts that pause when credits run out will resume automatically next month.
+
+— ReadyForLLM
+
+### Credits-exhausted email (new — fires when balance hits zero)
+
+*Subject:* Your ReadyForLLM credits are out — prompts paused
+
+*Body:*
+Hi {firstName},
+
+Heads up — {domain}'s credits ran out today. We've paused your tracked prompts until you top up, upgrade, or until your monthly reset on {resetDate}.
+
+Your data stays put. Everything resumes the moment you're back in credit.
+
+[Top up from $19 →]({topupUrl})
+[Upgrade to Growth →]({upgradeUrl})
+[Wait until {resetDate}]
+
+— ReadyForLLM
+
+### Weekly digest (updated with credit summary)
+
+*Subject:* This week in AI answers for {brandName}
+
+*Body:*
+Hi {firstName},
+
+Week of {weekRange}. Quick numbers:
+
+- Prompts tracked: {nPrompts}
+- **Credits used this week:** {creditsWeek} ({projectedMonth} on current pace)
+- Your share change vs last week: {delta}
+- Drift events: {driftCount}
+- AI-referred visits: {referralCount}
+
+**What moved this week:**
+`{3-5 bullets}`
+
+**Three prompts your competitors won:**
+`{gap report items}`
+
+Full report: {dashboardUrl}
+
+— ReadyForLLM
+
+### Top-up confirmation (new)
+
+*Subject:* {packSize} credits added to ReadyForLLM
+
+*Body:*
+Hi {firstName},
+
+Confirming your top-up for {domain}:
+
+- **{packSize} credits** added
+- **New balance:** {newBalance}
+- **Expires:** {expirationDate} (90 days from today)
+- **Paid:** ${packPrice}
+
+Your paused prompts (if any) are resuming now.
+
+Receipt: {receiptUrl}
+
+— ReadyForLLM
+
+---
+
+## 6. Feature page tweaks (Part 3)
+
+### Answer Monitor — update the stats block
+
+**Old stat:** `4 — frontier models polled daily`
+
+**New stat:** `4+ — standard and frontier models, your choice of which per prompt`
+
+**Add to benefits section, benefit 1:**
+`>` Each prompt shows its exact credit cost before you commit. Your dashboard's credit meter stays in sync with your allocation so there are no billing surprises.
+
+### Prompt Library feature page
+
+Update the tagline:
+
+**Old:** *500+ curated buyer prompts. Pick, don't write.*
+**New:** *500 curated prompts. Or let Prompt Studio write 50 for your specific site.*
+
+In the benefits section, add a new benefit card:
+
+**Benefit 4 — Or: generate custom prompts from your site**
+- Description: Prompt Studio scans your site and writes 50 buyer prompts tailored to your category.
+- CTO: Firecrawl-backed site scan + Gemini 2.5 Pro prompt generation. Results are editable before tracking starts.
+- CMO: Skip the "what should we track?" meeting. Get 50 prompts in 30 seconds, pick 20, start tracking.
+
+---
+
+## 7. Summary for the impatient
+
+- **Pricing page fully replaced** — now priced around credits, not prompt counts.
+- **Credit meter copy added** to dashboard header component.
+- **Out-of-credits modal** and **low-credits email** added.
+- **Trial language updated** to reference 6,000 trial credits and free Prompt Studio.
+- **Weekly digest** now includes credit consumption.
+- **Top-up confirmation email** added.
+- **Prompt Library feature page** gets a Prompt Studio benefit card.
+
+Everything else in the v2.0 copy kit is unchanged. If you haven't read the v2.0 copy kit, read it first — this is the delta only.
