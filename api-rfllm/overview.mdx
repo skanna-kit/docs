@@ -1,5 +1,800 @@
 ---
-title: 'Create Plant'
-openapi: 'POST /plants'
+title: 'Introduction'
+description: 'API reference for the Create Plant endpoint.'
 ---
-Hello, world!
+# brain.readyforllm.com — API Reference
+
+**Canonical API reference for `rfllm-brain`.**
+
+This file is the single source of truth for how any client (`rfllm-app`, `rfllm-marketing`, internal tooling) talks to the brain worker. The file is mirrored verbatim into the sibling repos via symlink. Any change to an endpoint's contract must be reflected here in the same PR.
+
+- **Base URL (production):** `https://brain.readyforllm.com`
+- **Base URL (local dev):** `http://localhost:8787`
+- **Architecture version:** v2 (post Phase 0.5 + Phase 0.5b, audit 2026-04-17)
+
+**Last major cleanup:** Phase 0.7 (2026-04-17) — v1 crawler-infrastructure surface removed. If you find references to `/analyze`, `/crawl`, `/broadcast`, `/deploy`, `/notify`, or v1 `/competitors` semantics, they are historical and should not be re-implemented without an explicit product-direction decision.
+
+This worker is a single-file Cloudflare Worker whose router lives in `src/index.ts`. It uses the Supabase **service-role** key and bypasses RLS — treat every non-`/public/*` endpoint as privileged.
+
+---
+
+## Authentication
+
+The worker exposes three authentication modes. The check is a global gatekeeper in `src/index.ts`: requests to `/webhooks/polar` and any path starting with `/public/` bypass the gate, everything else requires the internal service secret.
+
+### 1. Internal service secret (`x-api-key`)
+
+Used for every endpoint that is not `/webhooks/polar` and not `/public/*`. That includes all GET admin/credit endpoints, all POST operational endpoints, cron-equivalent manual triggers, and the billing/checkout flows invoked by the dashboard.
+
+- **Header:** `x-api-key: <INTERNAL_SERVICE_SECRET>`
+- **Env var:** `INTERNAL_SERVICE_SECRET`
+- **Failure mode:** `401 { "error": "Unauthorized" }`
+
+Some endpoints additionally require `x-user-id: <supabase auth uuid>` (currently `POST /sites/create-from-onboarding` and `POST /checkout/create`). Missing that header returns `400 { "error": "Missing x-user-id header" }`.
+
+### 2. Tool token (`x-tool-token`)
+
+Three `/public/*` endpoints are gated behind a short-lived HMAC token minted by the marketing site:
+
+- `POST /public/generate-preview`
+- `POST /public/check-citations`
+- `POST /public/estimate-size`
+
+The token is `<payloadB64>.<signatureB64>` where `payloadB64 = base64url(JSON.stringify({purpose, iat, exp, nonce, origin, ip}))` and the signature is HMAC-SHA256 of `payloadB64` under `TOOL_TOKEN_SECRET`. TTL is 60s and each nonce is stored in KV for 5 minutes (single-use replay protection). The `purpose` field must match the endpoint being called.
+
+- **Header:** `x-tool-token: <payloadB64>.<signatureB64>`
+- **Env var:** `TOOL_TOKEN_SECRET` (shared byte-for-byte with the marketing app's Vercel env)
+- **Failure mode:** `403 { "error": "Forbidden", "reason": <string> }` where reason ∈
+  - `missing_token` — header absent
+  - `malformed_token` — not two `.`-separated parts
+  - `bad_signature` — HMAC mismatch
+  - `malformed_payload` — payload is not valid base64url JSON
+  - `expired` — `exp < now`
+  - `future_iat` — `iat > now + 30s` (clock skew guard)
+  - `wrong_purpose` — token minted for a different tool
+  - `replayed_nonce` — nonce already seen in the last 5 minutes
+
+Separately from the token gate, each tool has a daily-budget cap + kill-switch (see [Rate limits](#rate-limits)). If either trips, the endpoint returns `429 { "error": <msg>, "reason": "cap_hit" | "tool_disabled" }`.
+
+### 3. Polar webhook signature
+
+`POST /webhooks/polar` verifies the inbound request via `validateEvent` from `@polar-sh/sdk/webhooks` using the standard-webhooks headers `webhook-id`, `webhook-timestamp`, `webhook-signature`.
+
+- **Env var:** `POLAR_WEBHOOK_SECRET` (pass raw, including the `polar_whs_` prefix — the SDK strips it internally)
+- **Failure mode:** `401 { "error": "signature verification failed" }`
+
+### 4. Public (no auth)
+
+The remaining `/public/*` endpoints are fully unauthenticated. They are rate-limited per caller IP (see [Rate limits](#rate-limits)).
+
+---
+
+## CORS
+
+`src/index.ts` allows these origins: `http://localhost:3000`, `http://localhost:3005`, `https://app.readyforllm.com`, `https://readyforllm.com`, `https://www.readyforllm.com`. Origins outside that list get the first entry in the allow-list back (effectively blocked by the browser's CORS check).
+
+`OPTIONS` requests are answered with `204` and CORS headers. `Access-Control-Allow-Methods: GET, POST, OPTIONS`. `Access-Control-Allow-Headers: Content-Type, x-api-key`.
+
+---
+
+## Endpoints
+
+Every endpoint returns `Content-Type: application/json` unless otherwise noted. Unmapped paths return `404 { "error": "Not Found" }`. Methods other than `GET` / `POST` / `OPTIONS` return `405 { "error": "Method Not Allowed" }`.
+
+### Credits (internal auth)
+
+#### GET `/credits/balance`
+
+Look up a site's current credit balance, monthly allocation, reset timestamp, and the last 20 ledger rows.
+
+**Query params:**
+- `siteId` (required) — site UUID
+
+**Success (200):**
+```json
+{
+  "balance": 17230,
+  "allocation": 20000,
+  "resetAt": "2026-05-12T00:00:00Z",
+  "recentTransactions": [
+    {
+      "id": "uuid",
+      "type": "grant_subscription",
+      "amount": 20000,
+      "balance_after": 20000,
+      "created_at": "2026-04-12T00:00:00Z",
+      "note": "Subscription grant: growth monthly"
+    }
+  ]
+}
+```
+
+**Errors:**
+- `400 { "error": "Missing siteId" }`
+- `500 { "error": "Balance lookup failed" }` — Supabase query failed
+
+**Side effects:** two `sites` + `credit_transactions` reads, no writes.
+
+#### POST `/credits/grant-monthly`
+
+Manually trigger the monthly-reset sweep. Idempotent — only sites whose `credits_reset_at` is already in the past are touched. The daily cron runs the same method, so production use of this endpoint is limited to ops runbooks.
+
+**Request:** empty body.
+
+**Success (200):**
+```json
+{ "reset": 3, "errors": 0 }
+```
+
+**Errors:**
+- `500 { "error": "Grant-monthly failed" }`
+
+**Side effects:** calls `CreditService.processMonthlyResets()` — for each due monthly site, updates `sites.credits_remaining`, `credits_allocation_monthly`, `credits_reset_at`, and inserts one `credit_transactions` row of `type: 'grant_subscription'`.
+
+#### POST `/credits/reconcile`
+
+Audit the ledger: compare the sum of `credit_transactions.amount` per site against `sites.credits_remaining`. Reports drift, does **not** auto-correct.
+
+**Request body (optional):**
+```json
+{ "siteId": "uuid" }
+```
+If `siteId` is omitted, reconciles every site with `deleted_at IS NULL`.
+
+**Success (200):**
+```json
+{
+  "drifts": [
+    { "siteId": "uuid", "expected": 17230, "actual": 17240 }
+  ]
+}
+```
+`drifts` is empty when everything reconciles.
+
+**Errors:**
+- `500 { "error": "Reconcile failed" }`
+
+---
+
+### Admin (internal auth)
+
+#### GET `/admin/tool-status`
+
+Returns the kill-switch state and today's call count for every tool in `DAILY_BUDGET_CAPS`.
+
+**Success (200):**
+```json
+{
+  "tools": [
+    { "tool": "generate-preview", "enabled": true, "cap": 3000, "usedToday": 124 },
+    { "tool": "parasite-blocklist", "enabled": true, "cap": null, "usedToday": 0 }
+  ]
+}
+```
+`cap: null` means unlimited (`Infinity` in code).
+
+#### POST `/admin/kill-switch`
+
+Toggle the per-tool kill-switch. Writes KV key `tool-enabled:<tool>` with 24h TTL; disables the tool in ≤30s regardless of its cap.
+
+**Request body:**
+```json
+{ "tool": "generate-preview", "enabled": false }
+```
+
+**Success (200):**
+```json
+{ "ok": true, "tool": "generate-preview", "enabled": false }
+```
+
+**Errors:**
+- `400 { "error": "Missing tool or enabled" }` — body is missing either field or `enabled` is not a boolean
+- `400 { "error": "Unknown tool" }` — `tool` is not in `DAILY_BUDGET_CAPS`
+- `500 { "error": "Kill switch failed" }`
+
+---
+
+### Polar webhook (signature auth)
+
+#### POST `/webhooks/polar`
+
+Receives Polar subscription-lifecycle and order events. Verified via `@polar-sh/sdk/webhooks` `validateEvent`.
+
+**Handled event types:**
+
+| Event | Action |
+| --- | --- |
+| `subscription.created`, `subscription.active` | `activateSite` — sets `sites.is_active=true`, `status='active'`, writes `polar_subscription_id` / `polar_customer_id` / `current_period_end`, then grants the tier's credit allocation with the correct cadence. |
+| `subscription.cycled` | `handleCycled` — refreshes `current_period_end`. For monthly subs, grants the tier allocation. For annual subs, no-op (the daily cron's `refillAnnualSubscribers` handles intra-year monthly refills). |
+| `subscription.canceled` | `cancelSite` — sets `is_active=false`, `status='canceled'`. User retains access until `current_period_end`. |
+| `subscription.revoked` | `revokeSite` — sets `is_active=false`, `status='revoked'`, clears `current_period_end`. |
+| `order.paid` | `recordInvoice` — upserts into `polar_invoices` keyed on `polar_invoice_id`. If the order's `productId` matches a top-up SKU (`POLAR_PRODUCT_TOPUP_1K/3K/10K/30K/100K`), grants the corresponding credits with 90-day expiration via `CreditService.grantTopup`. |
+| `checkout.updated` | Acknowledged, no action. |
+| any other | Logged, `handled: false`. |
+
+**Site lookup order** for every event: `data.metadata.site_id` → `polar_subscription_id` → `polar_customer_id`. If none resolves, `handled: false, siteId: null`.
+
+**Success (200):**
+```json
+{ "handled": true, "type": "subscription.cycled", "siteId": "uuid" }
+```
+Always returns 200 on handler errors after signature verification, with `{ "handled": false, "error": "internal" }` — this prevents Polar from retrying and prevents the signature from being invalidated by a replay.
+
+**Errors:**
+- `401 { "error": "signature verification failed" }` — invalid or missing standard-webhooks headers
+
+**Important invariants:**
+- Polar SDK-validated events use camelCase field names: `customerId`, `subscriptionId`, `currentPeriodEnd`, `totalAmount`, `productId`. Do **not** look for snake_case equivalents (`customer_id`, etc.).
+- Amount fields: `order.paid` uses `totalAmount`; `subscription.*` events use `amount`. `recordInvoice` falls back through both.
+
+---
+
+### Onboarding + billing (internal auth)
+
+#### POST `/sites/create-from-onboarding`
+
+Create the `sites` row after the marketing onboarding flow completes. Row is inserted in `status='pending_verification'`, `is_active=false` — the Polar webhook flips it active. Idempotent on `(user_id, domain)`.
+
+**Required headers:**
+- `x-api-key`
+- `x-user-id` — Supabase auth user UUID
+
+**Request body:**
+```json
+{
+  "domain": "example.com",
+  "tier": "growth",
+  "billingCycle": "monthly",
+  "pageCount": 340,
+  "recommendedTier": "growth"
+}
+```
+
+**Success (200):**
+```json
+{ "siteId": "uuid" }
+```
+If `(user_id, domain)` collides on the unique index (Postgres code `23505`), the existing row's id is returned instead.
+
+**Errors:**
+- `400 { "error": "Missing x-user-id header" }`
+- `400 { "error": "Missing required fields" }` — any of `domain`, `tier`, `billingCycle`, `pageCount`, `recommendedTier` is undefined
+- `500 { "error": "Failed to create site" }` — insert failed with a non-23505 error
+- `500 { "error": "Site creation failed" }` — unhandled exception
+
+#### POST `/checkout/create`
+
+Create a Polar hosted-checkout session for the given site × tier × cycle. Returns the checkout URL to redirect to. All Polar API calls live in brain — never call `api.polar.sh` from the Vercel app.
+
+**Required headers:**
+- `x-api-key`
+- `x-user-id`
+
+**Request body:**
+```json
+{
+  "siteId": "uuid",
+  "userEmail": "user@example.com",
+  "tier": "growth",
+  "billingCycle": "monthly"
+}
+```
+`tier ∈ { 'starter', 'growth', 'scale', 'enterprise' }`. `billingCycle ∈ { 'monthly', 'annual' }`.
+
+The product is resolved by looking up env var `POLAR_PRODUCT_<TIER>_<CYCLE>` (uppercased). Checkout metadata embeds `site_id`, `user_id`, `tier`, `billing_cycle` — the Polar webhook reads these to wire the subscription back to the site.
+
+**Success (200):**
+```json
+{ "checkoutUrl": "https://polar.sh/checkout/...", "checkoutId": "uuid" }
+```
+
+**Errors:**
+- `400 { "error": "Missing x-user-id header" }`
+- `400 { "error": "Missing required fields" }`
+- `400 { "error": "Enterprise tier does not use self-serve checkout" }` — enterprise is contact-sales only
+- `500 { "error": <Polar error message> }` — any Polar API failure propagates
+
+#### POST `/billing/info`
+
+Read-only view of a site's billing state. All fields are read directly from the `sites` row — no Polar API round-trips. Used by the dashboard billing page.
+
+**Request body:**
+```json
+{ "siteId": "uuid" }
+```
+
+**Success (200):**
+```json
+{
+  "tier": "growth",
+  "billingCycle": "monthly",
+  "currentPeriodEnd": "2026-05-12T00:00:00Z",
+  "creditsRemaining": 8420,
+  "creditsAllocationMonthly": 10000
+}
+```
+
+- `tier` ∈ `'starter' | 'growth' | 'scale' | 'trial'` (also `'enterprise'` if provisioned).
+- `billingCycle` reads `sites.billing_cadence` ∈ `'monthly' | 'annual'`.
+- `currentPeriodEnd` is populated by the Polar `subscription.created` / `subscription.cycled` webhook; `null` before first activation or after revocation.
+
+**Errors:**
+- `404 { "error": "Site not found" }` — no site row or already soft-deleted
+- `500 { "error": "Billing processing failed", "details": "<message>" }`
+
+---
+
+### Operational / utility (internal auth)
+
+#### POST `/verify-dns`
+
+Check whether a domain's DNS points at `readyforllm.com` per `src/lib/verifyDNS.ts`.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{ "valid": true }
+```
+
+**Errors:**
+- `500 { "error": "DNS check failed" }`
+
+---
+
+### Public free tools (token-gated, x-tool-token)
+
+All three endpoints additionally enforce a per-IP rate limit of **3 req/min** and a daily global budget cap via `src/lib/toolBudget.ts`.
+
+#### POST `/public/generate-preview`
+
+Generate a lite llms.txt preview for a domain by scraping the homepage's `<title>` and meta description. Intentionally does **not** call Firecrawl — the paid tool does.
+
+**Auth:** tool token, purpose `generate-preview`.
+
+**Request body:**
+```json
+{ "domain": "example.com", "email": "lead@example.com" }
+```
+`email` is optional; when present it's saved to `free_scan_leads` for attribution.
+
+**Success (200):**
+```json
+{ "previewId": "uuid", "content": "# Example\n\n> ..." }
+```
+`previewId` can be read back via `GET /public/get-preview/:id` for 12 hours.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `403 { "error": "Forbidden", "reason": <token-reason> }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }` — per-IP limit
+- `429 { "error": "Tool is at daily capacity. Sign up for unlimited access.", "reason": "cap_hit" }`
+- `429 { "error": "Tool temporarily unavailable.", "reason": "tool_disabled" }`
+- `500 { "error": "Storage failed" }` — `temp_manifests` insert failed
+
+**Side effects:** one homepage `fetch`, one `temp_manifests` insert, one `free_scan_leads` insert, one KV increment on `global:generate-preview:<date>`.
+
+#### POST `/public/check-citations`
+
+Ask Gemini 2.0 Flash to list the top 5 brands for each of up to 3 topics; report whether the target domain appears in each answer.
+
+**Auth:** tool token, purpose `check-citations`.
+
+**Request body:**
+```json
+{ "domain": "example.com", "topics": ["project management saas", "team collaboration"] }
+```
+1 ≤ `topics.length` ≤ 3.
+
+**Success (200):**
+```json
+{
+  "domain": "example.com",
+  "results": {
+    "project management saas": { "mentioned": true, "response": "The top 5 are..." }
+  },
+  "score": 50
+}
+```
+`score = round(mentionCount / topics.length * 100)`. `response` is truncated to 500 chars.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `400 { "error": "Provide 1-3 topics" }`
+- `403 { "error": "Forbidden", "reason": <token-reason> }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `429 { "error": "...", "reason": "cap_hit" | "tool_disabled" }`
+
+**Side effects:** up to 3 Gemini calls, one `free_scan_leads` insert.
+
+#### POST `/public/estimate-size`
+
+Call Firecrawl `/v1/map` on the domain, return page count and recommended tier. Hard 20s handler ceiling; Firecrawl fetch has its own 15s abort.
+
+**Auth:** tool token, purpose `estimate-size`.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "pageCount": 340,
+  "recommendedTier": "growth",
+  "firstFewUrls": ["https://example.com/", "https://example.com/about"]
+}
+```
+`firstFewUrls` is the first 10 mapped URLs. `recommendedTier` comes from `recommendTier(pageCount)` in `src/lib/tiers.ts`: ≤100 → `starter`, ≤1000 → `growth`, ≤5000 → `scale`, else `enterprise`.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `403 { "error": "Forbidden", "reason": <token-reason> }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `429 { "error": "...", "reason": "cap_hit" | "tool_disabled" }`
+- `502 { "error": "Size estimation failed" }` — Firecrawl returned non-2xx or the fetch threw
+- `504 { "error": "Size estimation timed out" }` — 20s handler ceiling
+
+**Side effects:** one Firecrawl `/v1/map` call (costs 1 Firecrawl credit per call, not per URL), one `free_scan_leads` insert.
+
+---
+
+### Public free tools (no token, per-IP rate limit)
+
+#### POST `/public/check-manifest`
+
+Fetch `/llms.txt` + `/llms-full.txt` for the domain, score the manifest against the rubric in `scoreManifestContent`, save the report to `free_scan_leads`.
+
+**Rate limit:** 10 req/min per IP.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "exists": true,
+  "fullExists": false,
+  "score": 75,
+  "issues": ["No llms-full.txt found. Consider adding a full version for deep AI context."],
+  "content": "# Example\n\n...",
+  "fullContentSize": 0
+}
+```
+`content` is truncated to 5000 chars. `score` is 0 when `/llms.txt` is missing.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+
+#### POST `/public/audit-robots`
+
+Fetch `/robots.txt`, classify each of 16 known AI bots as `allowed | blocked | unmentioned`, compute a 0–100 score.
+
+**Rate limit:** 10 req/min per IP.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "bots": {
+    "GPTBot": "blocked",
+    "ClaudeBot": "allowed",
+    "PerplexityBot": "unmentioned"
+  },
+  "score": 62,
+  "hasRobotsTxt": true,
+  "hasWildcardAllowAll": false,
+  "warnings": ["No training-only bots (CCBot, Bytespider, Google-Extended) are explicitly blocked."]
+}
+```
+Tracked bots: `GPTBot, ChatGPT-User, OAI-SearchBot, ClaudeBot, Claude-Web, anthropic-ai, PerplexityBot, Perplexity-User, Google-Extended, Googlebot, CCBot, Bytespider, Applebot-Extended, Amazonbot, FacebookBot, Meta-ExternalAgent`.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `502 { "error": "Could not fetch robots.txt" }`
+
+#### POST `/public/bandwidth-calc`
+
+Pure-math calculator of monthly AI-bot bandwidth waste. No external calls.
+
+**Rate limit:** 30 req/min per IP.
+
+**Request body:**
+```json
+{ "pageViews": 100000, "hostingProvider": "vercel" }
+```
+`hostingProvider` is case-insensitive. Known providers: `vercel | aws | cloudflare | netlify | other`.
+
+**Success (200):**
+```json
+{
+  "monthlyWaste": 1.58,
+  "wastedGB": 10.5,
+  "parasiteHits": 21000,
+  "assumptions": {
+    "aiBotRatio": 0.35,
+    "parasiteRatio": 0.6,
+    "avgPageKB": 500,
+    "costPerGB": 0.15
+  }
+}
+```
+
+**Errors:**
+- `400 { "error": "Invalid pageViews" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+
+#### POST `/public/newsletter`
+
+Add an email to the Resend audience `9027fe72-6693-48eb-a6a6-306fe0888b40`. Also logs a `free_scan_leads` row for attribution.
+
+**Rate limit:** 5 req/min per IP.
+
+**Request body:**
+```json
+{ "email": "user@example.com", "source": "footer" }
+```
+
+**Success (200):**
+```json
+{ "ok": true }
+```
+Resend `409 Conflict` (already subscribed) is treated as success.
+
+**Errors:**
+- `400 { "error": "Invalid email" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `500 { "error": "Signup failed" }` — Resend returned non-409 non-2xx
+- `500 { "error": "Newsletter service unavailable" }` — Resend fetch threw
+
+#### POST `/public/preflight`
+
+Cheap onboarding check: fetch `/robots.txt`, `/sitemap.xml`, `/llms.txt` and return a summary. Used by the marketing onboarding flow before the user commits to a crawl.
+
+**Rate limit:** 10 req/min per IP.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "hasManifest": true,
+  "manifestScore": 65,
+  "hasRobotsTxt": true,
+  "hasWildcardAllowAll": false,
+  "domain": "example.com"
+}
+```
+(`hasSitemap` is stored in `free_scan_leads.report_json` but **not** returned in the response body.)
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+
+#### GET `/public/get-preview/:id`
+
+Fetch a temp manifest preview by UUID. Used by the marketing site to render the "hosted" demo version of a `generate-preview` result.
+
+**Rate limit:** 30 req/min per IP.
+
+**Path params:**
+- `id` — UUID of the preview returned by `/public/generate-preview`.
+
+**Success — preview exists, not expired (200):**
+```json
+{
+  "ok": true,
+  "expired": false,
+  "domain": "example.com",
+  "content": "# Example\n\n> ...",
+  "createdAt": "2026-04-12T10:00:00Z",
+  "expiresAt": "2026-04-12T22:00:00Z"
+}
+```
+
+**Success — preview exists, expired (200):**
+```json
+{
+  "ok": true,
+  "expired": true,
+  "domain": "example.com",
+  "createdAt": "2026-04-11T10:00:00Z"
+}
+```
+Marketing renders an upsell page on `expired: true`; `content` is intentionally omitted.
+
+**Not found (404):**
+```json
+{ "ok": false, "error": "Preview not found" }
+```
+Returned when `id` is not a valid UUID or the row doesn't exist.
+
+**Rate limit (429):**
+```json
+{ "error": "Rate limit exceeded. Try again in a minute." }
+```
+
+#### GET `/public/parasite-blocklist`
+
+Live list of active parasite bots from `ai_bot_signatures` where `is_parasite = true AND is_active = true`. Consumed by the marketing Shield feature page.
+
+**Rate limit:** 30 req/min per IP.
+**Cache:** `Cache-Control: public, max-age=300`.
+
+**Success (200):**
+```json
+{
+  "ok": true,
+  "count": 18,
+  "lastUpdatedAt": "2026-04-12T16:00:00.000Z",
+  "bots": [
+    { "name": "GPTBot", "category": "training", "notes": "OpenAI training crawler." }
+  ]
+}
+```
+`bots` is sorted alphabetically by name. `lastUpdatedAt` is the most recent `updated_at` across returned rows, or `null` when no rows match.
+
+**Errors:**
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `500 { "error": "Failed to fetch blocklist" }`
+
+---
+
+## Crons
+
+`wrangler.jsonc` declares one cron schedule:
+
+### `0 0 * * *` — daily midnight UTC
+
+In order, via `ctx.waitUntil` (sequential within the async IIFE, each wrapped in try/catch):
+1. `CreditService.refillAnnualSubscribers()` — grants the monthly allocation to any `billing_cadence='annual'` site whose `last_monthly_refill_at` is ≥ 30 days old. Balance is **replaced**, not incremented (matches monthly behavior).
+2. `CreditService.expireTopupCredits()` — deducts expired top-up grants (sweeps `credit_transactions` rows of `type='grant_topup'` with `expires_at < now()` that do not yet have a matching `expiration` row). Writes offsetting `expiration` ledger rows. Clamps the expiration amount to current balance (see method comment for the approximation rationale).
+3. `CreditService.processMonthlyResets()` — safety-net re-grant for `billing_cadence='monthly'` sites whose `credits_reset_at` has elapsed (should normally already have been handled by `subscription.cycled`).
+
+---
+
+## Rate limits
+
+### Per-IP tool limits
+
+Enforced in `PublicService.rateLimit` using KV key `rl:<tool>:<ip>`. `cf-connecting-ip` is the source of truth for the IP. Localhost origins bypass.
+
+| Tool | Limit | Window |
+| --- | --- | --- |
+| `check-manifest` | 10 | 60s |
+| `auditRobots` | 10 | 60s |
+| `generatePreview` | 3 | 60s |
+| `checkCitations` | 3 | 60s |
+| `bandwidthCalc` | 30 | 60s |
+| `newsletter` | 5 | 60s |
+| `preflight` | 10 | 60s |
+| `estimate-size` | 3 | 60s |
+| `get-preview` | 30 | 60s |
+| `parasite_blocklist` | 30 | 60s |
+
+### Per-tool daily global budget caps
+
+Enforced in `checkAndIncrementBudget` using KV key `global:<tool>:<yyyy-mm-dd>` with a 48h TTL. Each cap is a **total call count per UTC day**, not per-IP.
+
+| Tool | Daily cap |
+| --- | --- |
+| `ai-visibility-audit` | 2000 |
+| `competitor-ai-gap` | 2000 |
+| `wrong-facts-finder` | 3000 |
+| `share-of-voice` | 1500 |
+| `prompt-studio-preview` | 1500 |
+| `brand-vs-category` | 3000 |
+| `ai-faq-generator` | 5000 |
+| `category-prompt-universe` | 3000 |
+| `domain-ranking-battle` | 3000 |
+| `ai-answer-diff` | 5000 |
+| `buyer-persona-prompts` | 5000 |
+| `ai-citation-lookup` | 3000 |
+| `check-manifest` | 10000 |
+| `audit-robots` | 10000 |
+| `generate-preview` | 3000 |
+| `check-citations` | 3000 |
+| `bandwidth-calc` | 20000 |
+| `newsletter` | 1000 |
+| `preflight` | 5000 |
+| `estimate-size` | 3000 |
+| `parasite-blocklist` | unlimited (`Infinity`) |
+
+> Only `generate-preview`, `check-citations`, and `estimate-size` currently invoke `checkAndIncrementBudget` in their handler. The entries for the Phase 4+ tools (`ai-visibility-audit`, `brand-vs-category`, etc.) are reserved but not yet wired to request paths.
+
+### Kill-switch
+
+Set KV key `tool-enabled:<tool>` to the string `"false"` to disable a tool within ≤30s. TTL 24h, auto-cleared. Toggle via `POST /admin/kill-switch` or `wrangler kv key put --binding=RATE_LIMIT "tool-enabled:<tool>" "false"`.
+
+---
+
+## Environment variables
+
+Everything is a Cloudflare secret — no plaintext env in `wrangler.jsonc`. Local dev reads from `.dev.vars`.
+
+### Supabase
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY` — service role. Brain bypasses RLS.
+
+### Internal auth
+- `INTERNAL_SERVICE_SECRET` — the `x-api-key` value.
+- `TOOL_TOKEN_SECRET` — HMAC key shared with the marketing app's Vercel env. Generate via `openssl rand -hex 32`.
+
+### Polar
+- `POLAR_API_TOKEN` — server-side API token.
+- `POLAR_WEBHOOK_SECRET` — raw, including the `polar_whs_` prefix.
+- `POLAR_SERVER_URL` — optional; defaults to `https://api.polar.sh/v1`.
+- Subscription product IDs (all required):
+  - `POLAR_PRODUCT_STARTER_MONTHLY`, `POLAR_PRODUCT_STARTER_ANNUAL`
+  - `POLAR_PRODUCT_GROWTH_MONTHLY`, `POLAR_PRODUCT_GROWTH_ANNUAL`
+  - `POLAR_PRODUCT_SCALE_MONTHLY`, `POLAR_PRODUCT_SCALE_ANNUAL`
+- Top-up product IDs (optional; unset SKUs just skip top-up grants for that size):
+  - `POLAR_PRODUCT_TOPUP_1K` → 1000 credits
+  - `POLAR_PRODUCT_TOPUP_3K` → 3000 credits
+  - `POLAR_PRODUCT_TOPUP_10K` → 10000 credits
+  - `POLAR_PRODUCT_TOPUP_30K` → 30000 credits
+  - `POLAR_PRODUCT_TOPUP_100K` → 100000 credits
+
+### LLM / content providers
+- `GEMINI_API_KEY` — Gemini 2.0 Flash (citations).
+- `FIRECRAWL_API_KEY`.
+- `RESEND_API_KEY` — used by `/public/newsletter` to add contacts to the Resend audience. (v1 `EmailService` was removed in Phase 0.7; this key remains in use for the marketing newsletter signup.)
+
+### App URL
+- `NEXT_PUBLIC_APP_URL` — used by `CheckoutService` to build the Polar `success_url`.
+
+### Reserved for Phase 2 (not implemented yet)
+- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `PERPLEXITY_API_KEY`, `OPENROUTER_API_KEY` — anticipated by the product direction but not currently read from `Env`.
+
+### KV bindings
+- `RATE_LIMIT` (id `97b2e5df0d8b4ae8a20258bb476c7c06`) — per-IP rate limits, daily budget counters, kill-switch state, token nonce replay store.
+
+---
+
+## Data model touched by brain
+
+Non-exhaustive; see `supabase/migrations/` for authoritative schemas.
+
+- **`sites`** — `is_active`, `status`, `tier`, `billing_cadence`, `credits_remaining`, `credits_allocation_monthly`, `credits_reset_at`, `polar_subscription_id`, `polar_customer_id`, `current_period_end`, `subscription_started_at`, `last_monthly_refill_at`, `trial_credits_granted`, `trial_daily_limit`, `deleted_at`. All brain reads filter `deleted_at IS NULL`.
+- **`credit_transactions`** — append-only ledger. `type ∈ { 'grant_subscription', 'grant_topup', 'grant_trial', 'consume_prompt_run', 'consume_drift_summary', 'consume_tool_run', 'expiration' }`. `balance_after` denormalizes the resulting `sites.credits_remaining`. `related_polar_order_id` is used for idempotent expiration and top-up lookup.
+- **`polar_invoices`** — upserted by `order.paid` webhook, keyed on `polar_invoice_id`.
+- **`temp_manifests`** — 12h-TTL rows inserted by `/public/generate-preview`, read by `/public/get-preview/:id`.
+- **`free_scan_leads`** — lead attribution rows written by every marketing-facing `/public/*` handler.
+- **`ai_bot_signatures`** — read-only source for `/public/parasite-blocklist`.
+
+---
+
+## For agent / Claude Code consumers
+
+This file is mirrored into `rfllm-app` and `rfllm-marketing` via symlink (handled by the repo owner). When working in those repos:
+
+- ALWAYS read this file before writing code that calls the brain.
+- If a required endpoint is not listed here, **it does not exist.** Do not invent.
+- If an endpoint's response shape in this file differs from what you see in a client, this file is the truth — the client is drifted.
+- When you find drift: flag it in your completion report. Do not silently "fix" the client to match something that may be wrong on this side.
+- Auth header is `x-api-key` (NOT `x-internal-key` or `Authorization: Bearer`).
+- Public endpoints are under `/public/*`. Everything else requires `x-api-key`.
+
+---
+
+## Changelog
+
+- **2026-04-17** — Phase 0.7: removed v1 crawler-infrastructure surface area. Deleted endpoints (`/analyze`, `/crawl`, `/broadcast`, `/competitors` v1, `/deploy`, `/notify`), services (`AiService`, `CrawlService`, `BroadcastService`, `CompetitorService`, `CloudflareDeployService`, `TemplateWorker`, `EmailService`), tables (`pages`, `site_scans`, `broadcast_pings`, `competitors` v1, `competitor_diffs`, `site_api_keys`, `bot_logs`), hourly cron, and `INDEXNOW_KEY` secret. `/billing/info` reshaped to read directly from `sites` row (no Polar round-trips). Phase 1 will introduce a new v2 `/competitors` endpoint with fresh semantics tied to `tracked_prompts`.
+- **2026-04-17** — Full audit + canonical rewrite. Documented every live endpoint; flagged v1 handlers (`/analyze`, `/crawl`, `/broadcast`, `/competitors`, `/deploy`, parts of `/notify`) as deprecated for Phase 0.7 cleanup.
+- **2026-04-12** — Phase 0.5b annual subscription refill + top-up 90-day expiration (daily cron wired up).
+- **Phase 0.5** — Credit ledger, tool-token gate on `/public/generate-preview|check-citations|estimate-size`, per-tool daily budget caps + kill-switch, `/admin/tool-status`, `/admin/kill-switch`, `/credits/balance|grant-monthly|reconcile`.

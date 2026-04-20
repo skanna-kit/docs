@@ -1,0 +1,30 @@
+---
+title: 'Check Manifest'
+openapi: 'POST /public/check-manifest'
+---
+
+Fetch `/llms.txt` + `/llms-full.txt` for the domain, score the manifest against the rubric in `scoreManifestContent`, save the report to `free_scan_leads`.
+
+**Rate limit:** 10 req/min per IP.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "exists": true,
+  "fullExists": false,
+  "score": 75,
+  "issues": ["No llms-full.txt found. Consider adding a full version for deep AI context."],
+  "content": "# Example\n\n...",
+  "fullContentSize": 0
+}
+```
+`content` is truncated to 5000 chars. `score` is 0 when `/llms.txt` is missing.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`

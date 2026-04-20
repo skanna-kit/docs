@@ -34,7 +34,7 @@
                   "rfllm-artifacts/prompt-studio-correction"
                 ]
               },
-             
+
               {
                 "group": "Endpoints",
                 "pages": ["core-api/users", "core-api/orders"]
@@ -62,19 +62,49 @@
           {
             "tab": "API ",
             "icon": "globe",
-            "root": "api-rfllm/overview",
             "groups": [
-               {
+              {
+                "group": "Getting Started",
+                "pages": [
+                  "api-rfllm/overview",
+                  "api-rfllm/environment-variables"
+                ],
+                "directory": "card"
+              },
+              {
+                "group": "Credits",
+                "pages": [
+                  "api-rfllm/endpoints/credits/balance",
+                  "api-rfllm/endpoints/credits/grant-monthly",
+                  "api-rfllm/endpoints/credits/reconsile"
+                ],
+                "directory": "card"
+              },
+              {
                 "group": "API (Brain)",
                 "pages": [
                   "api-rfllm/api-strategy",
                   "api-rfllm/public-endpoint-sec"
                 ]
+              },
+              {
+                "group": "Public",
+                "pages": [
+                  "api-rfllm/endpoints/public/audit-robots",
+                  "api-rfllm/endpoints/public/check-citations",
+                  "api-rfllm/endpoints/public/check-manifest",
+                  "api-rfllm/endpoints/public/estimate-size",
+                  "api-rfllm/endpoints/public/generate-preview",
+                  "api-rfllm/endpoints/public/get-preview",
+                  "api-rfllm/endpoints/public/newsletter",
+                  "api-rfllm/endpoints/public/parasite-blocklist",
+                  "api-rfllm/endpoints/public/preflight"
+                ],
+                "directory": "card"
               }
             ]
           }
         ]
-       
       },
       {
         "product": "Skanna",

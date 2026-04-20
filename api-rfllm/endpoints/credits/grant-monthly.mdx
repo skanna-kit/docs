@@ -1,0 +1,17 @@
+---
+title: 'Grant Monthly Credits'
+description: 'Manually trigger the monthly-reset sweep. Idempotent — only sites whose `credits_reset_at` is already in the past are touched. The daily cron runs the same method, so production use of this endpoint is limited to ops runbooks.'
+openapi: 'POST /credits/grant-monthly'
+---
+
+**Request:** empty body.
+
+**Success (200):**
+```json
+{ "reset": 3, "errors": 0 }
+```
+
+**Errors:**
+- `500 { "error": "Grant-monthly failed" }`
+
+**Side effects:** calls `CreditService.processMonthlyResets()` — for each due monthly site, updates `sites.credits_remaining`, `credits_allocation_monthly`, `credits_reset_at`, and inserts one `credit_transactions` row of `type: 'grant_subscription'`.

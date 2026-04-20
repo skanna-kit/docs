@@ -1,0 +1,28 @@
+---
+title: 'Parasite Blocklist'
+openapi: 'GET /public/parasite-blocklist'
+---
+
+Live list of active parasite bots from `ai_bot_signatures` where `is_parasite = true AND is_active = true`. Consumed by the marketing Shield feature page.
+
+**Rate limit:** 30 req/min per IP.
+**Cache:** `Cache-Control: public, max-age=300`.
+
+**Success (200):**
+```json
+{
+  "ok": true,
+  "count": 18,
+  "lastUpdatedAt": "2026-04-12T16:00:00.000Z",
+  "bots": [
+    { "name": "GPTBot", "category": "training", "notes": "OpenAI training crawler." }
+  ]
+}
+```
+`bots` is sorted alphabetically by name. `lastUpdatedAt` is the most recent `updated_at` across returned rows, or `null` when no rows match.
+
+**Errors:**
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `500 { "error": "Failed to fetch blocklist" }`
+
+---

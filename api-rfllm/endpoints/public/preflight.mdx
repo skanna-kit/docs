@@ -1,0 +1,29 @@
+---
+title: 'Preflight'
+openapi: 'POST /public/preflight'
+---
+
+Cheap onboarding check: fetch `/robots.txt`, `/sitemap.xml`, `/llms.txt` and return a summary. Used by the marketing onboarding flow before the user commits to a crawl.
+
+**Rate limit:** 10 req/min per IP.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "hasManifest": true,
+  "manifestScore": 65,
+  "hasRobotsTxt": true,
+  "hasWildcardAllowAll": false,
+  "domain": "example.com"
+}
+```
+(`hasSitemap` is stored in `free_scan_leads.report_json` but **not** returned in the response body.)
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`

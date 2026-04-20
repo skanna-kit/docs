@@ -1,0 +1,47 @@
+---
+title: 'Get Preview'
+openapi: 'GET /public/get-preview/:id'
+---
+
+#### GET `/public/get-preview/:id`
+
+Fetch a temp manifest preview by UUID. Used by the marketing site to render the "hosted" demo version of a `generate-preview` result.
+
+**Rate limit:** 30 req/min per IP.
+
+**Path params:**
+- `id` — UUID of the preview returned by `/public/generate-preview`.
+
+**Success — preview exists, not expired (200):**
+```json
+{
+  "ok": true,
+  "expired": false,
+  "domain": "example.com",
+  "content": "# Example\n\n> ...",
+  "createdAt": "2026-04-12T10:00:00Z",
+  "expiresAt": "2026-04-12T22:00:00Z"
+}
+```
+
+**Success — preview exists, expired (200):**
+```json
+{
+  "ok": true,
+  "expired": true,
+  "domain": "example.com",
+  "createdAt": "2026-04-11T10:00:00Z"
+}
+```
+Marketing renders an upsell page on `expired: true`; `content` is intentionally omitted.
+
+**Not found (404):**
+```json
+{ "ok": false, "error": "Preview not found" }
+```
+Returned when `id` is not a valid UUID or the row doesn't exist.
+
+**Rate limit (429):**
+```json
+{ "error": "Rate limit exceeded. Try again in a minute." }
+```

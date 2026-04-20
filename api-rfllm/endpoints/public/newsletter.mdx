@@ -1,0 +1,25 @@
+---
+title: 'Newsletter'
+openapi: 'POST /public/newsletter'
+---
+
+Add an email to the Resend audience `9027fe72-6693-48eb-a6a6-306fe0888b40`. Also logs a `free_scan_leads` row for attribution.
+
+**Rate limit:** 5 req/min per IP.
+
+**Request body:**
+```json
+{ "email": "user@example.com", "source": "footer" }
+```
+
+**Success (200):**
+```json
+{ "ok": true }
+```
+Resend `409 Conflict` (already subscribed) is treated as success.
+
+**Errors:**
+- `400 { "error": "Invalid email" }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `500 { "error": "Signup failed" }` — Resend returned non-409 non-2xx
+- `500 { "error": "Newsletter service unavailable" }` — Resend fetch threw

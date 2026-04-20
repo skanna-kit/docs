@@ -1,0 +1,35 @@
+---
+title: 'Estimate Size'
+openapi: 'POST /public/estimate-size'
+---
+
+Call Firecrawl `/v1/map` on the domain, return page count and recommended tier. Hard 20s handler ceiling; Firecrawl fetch has its own 15s abort.
+
+**Auth:** tool token, purpose `estimate-size`.
+
+**Request body:**
+```json
+{ "domain": "example.com" }
+```
+
+**Success (200):**
+```json
+{
+  "pageCount": 340,
+  "recommendedTier": "growth",
+  "firstFewUrls": ["https://example.com/", "https://example.com/about"]
+}
+```
+`firstFewUrls` is the first 10 mapped URLs. `recommendedTier` comes from `recommendTier(pageCount)` in `src/lib/tiers.ts`: ≤100 → `starter`, ≤1000 → `growth`, ≤5000 → `scale`, else `enterprise`.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `403 { "error": "Forbidden", "reason": <token-reason> }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }`
+- `429 { "error": "...", "reason": "cap_hit" | "tool_disabled" }`
+- `502 { "error": "Size estimation failed" }` — Firecrawl returned non-2xx or the fetch threw
+- `504 { "error": "Size estimation timed out" }` — 20s handler ceiling
+
+**Side effects:** one Firecrawl `/v1/map` call (costs 1 Firecrawl credit per call, not per URL), one `free_scan_leads` insert.
+
+---

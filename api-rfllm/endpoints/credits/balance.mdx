@@ -1,0 +1,35 @@
+---
+title: 'Credits'
+description: "Should we call each model provider directly, or route through OpenRouter as a single abstraction layer?"
+openapi: 'GET /credits/balance'
+---
+
+Look up a site's current credit balance, monthly allocation, reset timestamp, and the last 20 ledger rows.
+
+**Query params:**
+- `siteId` (required) — site UUID
+
+**Success (200):**
+```json
+{
+  "balance": 17230,
+  "allocation": 20000,
+  "resetAt": "2026-05-12T00:00:00Z",
+  "recentTransactions": [
+    {
+      "id": "uuid",
+      "type": "grant_subscription",
+      "amount": 20000,
+      "balance_after": 20000,
+      "created_at": "2026-04-12T00:00:00Z",
+      "note": "Subscription grant: growth monthly"
+    }
+  ]
+}
+```
+
+**Errors:**
+- `400 { "error": "Missing siteId" }`
+- `500 { "error": "Balance lookup failed" }` — Supabase query failed
+
+**Side effects:** two `sites` + `credit_transactions` reads, no writes.

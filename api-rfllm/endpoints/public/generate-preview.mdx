@@ -1,0 +1,30 @@
+---
+title: 'Generate Preview'
+openapi: 'POST /public/generate-preview'
+---
+
+Generate a lite llms.txt preview for a domain by scraping the homepage's `<title>` and meta description. Intentionally does **not** call Firecrawl — the paid tool does.
+
+**Auth:** tool token, purpose `generate-preview`.
+
+**Request body:**
+```json
+{ "domain": "example.com", "email": "lead@example.com" }
+```
+`email` is optional; when present it's saved to `free_scan_leads` for attribution.
+
+**Success (200):**
+```json
+{ "previewId": "uuid", "content": "# Example\n\n> ..." }
+```
+`previewId` can be read back via `GET /public/get-preview/:id` for 12 hours.
+
+**Errors:**
+- `400 { "error": "Invalid domain" }`
+- `403 { "error": "Forbidden", "reason": <token-reason> }`
+- `429 { "error": "Rate limit exceeded. Try again in a minute." }` — per-IP limit
+- `429 { "error": "Tool is at daily capacity. Sign up for unlimited access.", "reason": "cap_hit" }`
+- `429 { "error": "Tool temporarily unavailable.", "reason": "tool_disabled" }`
+- `500 { "error": "Storage failed" }` — `temp_manifests` insert failed
+
+**Side effects:** one homepage `fetch`, one `temp_manifests` insert, one `free_scan_leads` insert, one KV increment on `global:generate-preview:<date>`.

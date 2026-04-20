@@ -1,0 +1,26 @@
+---
+title: 'Reconcile Credits'
+description: 'Audit the ledger: compare the sum of `credit_transactions.amount` per site against `sites.credits_remaining`. Reports drift, does **not** auto-correct.'
+openapi: 'POST /credits/reconcile'
+---
+
+**Request body (optional):**
+```json
+{ "siteId": "uuid" }
+```
+If `siteId` is omitted, reconciles every site with `deleted_at IS NULL`.
+
+**Success (200):**
+```json
+{
+  "drifts": [
+    { "siteId": "uuid", "expected": 17230, "actual": 17240 }
+  ]
+}
+```
+`drifts` is empty when everything reconciles.
+
+**Errors:**
+- `500 { "error": "Reconcile failed" }`
+
+---
